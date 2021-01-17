@@ -11,9 +11,10 @@ set( GLFW_BUILD_DOCS OFF CACHE BOOL  "GLFW lib only" )
 set( GLFW_INSTALL OFF CACHE BOOL  "GLFW lib only" )
 add_subdirectory( glfw )
 
-# OpenAL
-add_subdirectory( openal-soft )
-include_directories( openal-soft/include )
+# include OpenAL, defines OPENAL_INCLUDE_DIR and OPENAL_LIBRARY
+# uses ENV $OPENALDIR for HINT
+include( FindOpenAL )
+include_directories( ${OPENAL_INCLUDE_DIR} )
 
 # MSVC linker flags
 if( MSVC )
@@ -26,7 +27,7 @@ set( OPINION-DYNAMICS-SRC main.cpp)
 # Add WIN32 Executable
 add_executable(opinion-dynamics WIN32 ${OPINION-DYNAMICS-SRC})
 #  link OpenGL, GLFW, and OpenAL
-target_link_libraries(opinion-dynamics ${OPENGL_LIBRARIES} glfw OpenAL)
+target_link_libraries(opinion-dynamics ${OPENGL_LIBRARIES} glfw ${OPENAL_LIBRARY})
 # MSVC project
 if( MSVC )
     if(${CMAKE_VERSION} VERSION_LESS "3.6.0") 
