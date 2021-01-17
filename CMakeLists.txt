@@ -15,7 +15,7 @@ if( MSVC )
     SET( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:mainCRTStartup" )
 endif()
 
-set( OPINION-DYNAMICS-SRC main.cpp)
+set( OPINION-DYNAMICS-SRC main.cpp )
 
 add_executable(opinion-dynamics WIN32 ${OPINION-DYNAMICS-SRC})
 target_link_libraries(opinion-dynamics ${OPENGL_LIBRARIES} glfw)
