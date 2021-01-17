@@ -1,7 +1,8 @@
 /*
 An adjacency list implementation of a directed graph data structure.
-
 Goal is just to get something quick and dirty working here, can optimize / refactor later.
+
+TODO: graph is almost certainly not memory-efficient. Try to allocate contiguously wrt to spatial adjacency?
 */
 #include <stdlib.h>
 #include <assert.h>
@@ -9,14 +10,38 @@ Goal is just to get something quick and dirty working here, can optimize / refac
 #include "../types.h"
 
 namespace graph {
-
+    //// Types
     typedef struct graph* Graph;
     typedef struct node* Node;
+    typedef struct properties* Properties;
+
+    //// forward declarations
+    // structs
+    struct properties;
+    struct node;
+    struct graph;
+
+    // functions
+    Graph make(uint, bool);
+    void destroy(Graph);
+    bool has_node(const Graph, uint);
+    int degree(const Graph, uint);
+    static int intcmp(const void*, const void*);
+    int has_edge(const Graph, uint, uint);
+    void add_edge(Graph, uint, uint);
+    void foreach(Graph graph, uint source, void (*f) (Graph graph, uint source, uint dest, void* data), void* data);
+
+
+    //// Implementations
+    struct properties {
+        float x, y;
+    };
 
     // Graph node with adjacency list.
     struct node {
         uint num_adjacent;
         uint num_slots;  // number of array slots
+        Properties properties;
         char is_sorted;  // true if list is sorted
                          // NOTE: all types except char require alignment since char is 1 byte (cf. http://www.catb.org/esr/structure-packing/)
         uint adjacent[1];  // adjacency list 
@@ -46,6 +71,14 @@ namespace graph {
             graph->nodes[i] = (Node) malloc(sizeof(struct node));
             assert(graph->nodes[i]);
 
+            // initialize all spatial locations as 0.f
+            // TODO: allow uninitialized?
+            graph->nodes[i]->properties = (Properties) malloc(sizeof(struct properties));
+            assert(graph->nodes[i]->properties);
+            graph->nodes[i]->properties->x 
+                = graph->nodes[i]->properties->y 
+                = 0.f;
+
             graph->nodes[i]->num_adjacent = 0;
             graph->nodes[i]->num_slots = 1;  
             graph->nodes[i]->is_sorted = 1;  // we initialize the adjacency lists in sorted order trivially
@@ -60,6 +93,7 @@ namespace graph {
     void 
     destroy(Graph graph) {
         for (uint i = 0; i < graph->num_nodes; ++i) {
+            free(graph->nodes[i]->properties);
             free(graph->nodes[i]);
         }
         free(graph);
@@ -128,7 +162,6 @@ namespace graph {
 
         // early out if edge already exists
         if (has_edge(graph, u, v)) {
-            printf("Edge (%i, %i) already exists.", u, v);
             return;
         }
 

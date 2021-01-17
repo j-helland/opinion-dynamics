@@ -22,7 +22,7 @@ int main(void) {
     }
 
     // check that it's empty
-    printf("Empty check has_edge");
+    printf("Empty check has_edge\n");
     for (n = 0; n < TEST_SIZE; ++n) {
         for (k = 0; k < TEST_SIZE; ++k) {
             assert( graph::has_edge(graph, n, k) == 0 );
@@ -30,7 +30,7 @@ int main(void) {
     }
 
     // another empty check
-    printf("Empty check degree, foreach match_dest");
+    printf("Empty check degree, foreach match_dest\n");
     for (n = 0; n < TEST_SIZE; ++n) {
         assert( graph::degree(graph, n) == 0, "degree must be zero" );
         graph::foreach(graph, n, match_dest, 0);
@@ -38,6 +38,18 @@ int main(void) {
 
     // make sure no edges somehow exist
     assert( graph->num_edges == 0 );
+
+    // check spatial coordinates
+    printf("Check that all node spatial coordinates are initialized to zero.\n");
+    for (n = 0; n < TEST_SIZE; ++n) {
+        assert( graph->nodes[n]->properties->x == 0.f && graph->nodes[n]->properties->y == 0.f );
+    }
+
+    // arrange all nodes in a main diagonal line
+    printf("Setting node positions to (n,n), where n is node index.\n");
+    for (n = 0; n < TEST_SIZE; ++n) {
+        graph->nodes[n]->properties->x = graph->nodes[n]->properties->y = (float) n;
+    }
 
     // add self-edges to all nodes
     for (n = 0; n < TEST_SIZE; ++n) {
