@@ -1,9 +1,6 @@
 [submodule "glfw"]
 	path = glfw
 	url = https://github.com/glfw/glfw
-[submodule "openal-soft"]
-	path = openal-soft
-	url = https://github.com/kcat/openal-soft
 [submodule "AudioFile"]
 	path = AudioFile
 	url = https://github.com/adamstark/AudioFile
