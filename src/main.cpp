@@ -1,12 +1,17 @@
 // CSTDLIB Header
 #include <cstdlib>
+// C++ Filesystem
+#include <filesystem>
 // C++ I/O Streams
 #include <iostream>
+// C++ Strings
+#include <string>
 // GLFW Header
 #include <GLFW/glfw3.h>
 // OpenAL Headers
 #include "al.h"
 #include "alc.h"
+#include "alext.h"
 // libsnd Headers
 #include "sndfile.h"
 
@@ -43,11 +48,77 @@ int main(void)
 	sf_count_t num_frames;
 	ALsizei num_bytes;
 	//  open audio file and check that it's usable
-	sndfile = sf_open("..\\sound.ogg", SFM_READ, &sfinfo);
+    std::string cpath = std::filesystem::current_path().string();
+    std::cout << "(debug) Current path is '" << cpath << "'\n";
+	sndfile = sf_open("..\\..\\res\\sound.ogg", SFM_READ, &sfinfo);
 	if(!sndfile) {
 		std::cout << "(libsnd) Could not open audio at sound.ogg\n";
 		return EXIT_FAILURE;
 	}
+    if (sfinfo.frames < 1 || sfinfo.frames > (sf_count_t)(INT_MAX / sizeof(short)) / sfinfo.channels)
+    {
+        std::cout << "(libsnd) Bad sample count in sound.ogg (" << sfinfo.frames << ")\n";
+        sf_close(sndfile);
+        return EXIT_FAILURE;
+    }
+    //  get sound format
+    format = AL_NONE;
+    if (sfinfo.channels == 1)
+        format = AL_FORMAT_MONO16;
+    else if (sfinfo.channels == 2)
+        format = AL_FORMAT_STEREO16;
+    else if (sfinfo.channels == 3) {
+        if (sf_command(sndfile, SFC_WAVEX_GET_AMBISONIC, NULL, 0) == SF_AMBISONIC_B_FORMAT)
+            format = AL_FORMAT_BFORMAT2D_16;
+    }
+    else if (sfinfo.channels == 4) {
+        if (sf_command(sndfile, SFC_WAVEX_GET_AMBISONIC, NULL, 0) == SF_AMBISONIC_B_FORMAT)
+            format = AL_FORMAT_BFORMAT3D_16;
+    }
+    if (!format) {
+        std::cout << "Unsupported channel count: " << sfinfo.channels << "\n";
+        sf_close(sndfile);
+        return EXIT_FAILURE;
+    }
+    //  decode audio file into buffer
+    membuf = static_cast<short*>(malloc((size_t)(sfinfo.frames * sfinfo.channels) * sizeof(short)));
+    num_frames = sf_readf_short(sndfile, membuf, sfinfo.frames);
+    if (num_frames < 1) {
+        free(membuf);
+        sf_close(sndfile);
+        std::cout << "Failed to read samples in sound.ogg\n";
+    }
+    num_bytes = (ALsizei)(num_frames * sfinfo.channels) * (ALsizei)sizeof(short);
+    //  buffer audio data into a new buffer object, then free the data and close the file
+    buffer = 0;
+    alGenBuffers(1, &buffer);
+    alBufferData(buffer, format, membuf, num_bytes, sfinfo.samplerate);
+    free(membuf);
+    sf_close(sndfile);
+    //  check what broke
+    err = alGetError();
+    if (err != AL_NO_ERROR) {
+        std::cout << "(OpenAL) Error: " << alGetString(err) << "\n";
+        if (buffer && alIsBuffer(buffer))
+            alDeleteBuffers(1, &buffer);
+        return EXIT_FAILURE;
+    }
+    //  set up a sound source
+    ALuint pSource;
+    float pitch = 1.f;
+    float gain = 1.f;
+    float position[3] = {0.f, 0.f, 0.f};
+    float velocity[3] = {0.f, 0.f, 0.f};
+    ALuint pBuffer = 0;
+    alGenSources(1, &pSource);
+    alSourcef(pSource, AL_PITCH, pitch);
+    alSourcef(pSource, AL_GAIN, gain);
+    alSource3f(pSource, AL_POSITION, position[0], position[1], position[2]);
+    alSource3f(pSource, AL_VELOCITY, velocity[0], velocity[1], velocity[2]);
+    alSourcei(pSource, AL_BUFFER, pBuffer);
+    //  set sound source to buffer
+    pBuffer = buffer;
+    alSourcei(pSource, AL_BUFFER, (ALint)pBuffer);
 
     /* GLFW window instance*/
     GLFWwindow* window;
@@ -71,6 +142,15 @@ int main(void)
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
     {
+        // if space is pressed, play sound
+        if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+            //  play sound
+            alSourcePlay(pSource);
+            ALint state = AL_PLAYING;
+            while (state == AL_PLAYING && alGetError() == AL_NO_ERROR) {
+                alGetSourcei(pSource, AL_SOURCE_STATE, &state);
+            }
+        }
         /* Render here */
         glClear(GL_COLOR_BUFFER_BIT);
 
@@ -85,6 +165,9 @@ int main(void)
     glfwTerminate();
 
     /* OpenAL clean-up */
+    //  delete buffer
+    alDeleteBuffers(1, &buffer);
+    //  device config
     if (!alcMakeContextCurrent(nullptr)) {
         std::cout << "(OpenAL) Failed to set context to nullptr, exiting.\n";
         return EXIT_FAILURE;
@@ -98,5 +181,6 @@ int main(void)
 		std::cout << "(OpenAL) Failed to close sound device, exiting.\n";
 		return EXIT_FAILURE;
 	}
+
     return EXIT_SUCCESS;
 }

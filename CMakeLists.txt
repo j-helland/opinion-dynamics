@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.18)
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 project(opinion-dynamics)
 
 # OpenGL
@@ -25,12 +28,9 @@ if( MSVC )
 endif()
 
 # Set Source
-<<<<<<< HEAD
 set( OPINION-DYNAMICS-SRC src/main.cpp)
-=======
 # set( OPINION-DYNAMICS-SRC main.cpp)
-set( OPINION-DYNAMICS-SRC graph_test.cpp)
->>>>>>> f094315fdee890542495e9746e5cb2d270de1596
+# set( OPINION-DYNAMICS-SRC graph_test.cpp)
 
 # Add WIN32 Executable
 # add_executable(opinion-dynamics WIN32 ${OPINION-DYNAMICS-SRC})
