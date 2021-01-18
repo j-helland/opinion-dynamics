@@ -36,3 +36,6 @@ build/
 
 # Visual Studio Directory
 .vs/
+
+# VSCode
+.vscode/
