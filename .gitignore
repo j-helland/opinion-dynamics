@@ -31,8 +31,13 @@
 *.out
 *.app
 
+# Temporary Files
+*~
+
 # Build Directory
 build/
+bin/
 
 # Visual Studio Directory
 .vs/
+.vscode/

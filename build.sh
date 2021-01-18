@@ -16,5 +16,5 @@ fi
     cd build
 
     echo "Running cmake..."
-    cmake -DOPENALDIR=$OPENALDIE ..
+    cmake -DOPENALDIR=$OPENALDIE .. -B ../bin
 )
