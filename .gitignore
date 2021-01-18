@@ -14,7 +14,8 @@
 # Compiled Dynamic libraries
 *.so
 *.dylib
-*.dll
+# Exception made for Third-Party DLLs from libsnd
+# *.dll
 
 # Fortran module files
 *.mod
