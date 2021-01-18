@@ -40,4 +40,9 @@ bin/
 
 # Visual Studio Directory
 .vs/
+<<<<<<< HEAD
+=======
+
+# VSCode
+>>>>>>> f094315fdee890542495e9746e5cb2d270de1596
 .vscode/

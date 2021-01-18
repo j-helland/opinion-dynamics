@@ -3,6 +3,7 @@
 
 #include "types.h"
 #include "data_structures/graph.h"
+#include "algorithms/traversal.h"
 
 #define TEST_SIZE (5)
 
@@ -78,6 +79,22 @@ int main(void) {
         for (k = 0; k < TEST_SIZE; ++k) {
             assert( graph::has_edge(graph, n, k) == 1 );
         }
+    }
+
+    // run bfs and accumulate nodes in bfs ordering using dat void* cast (this feels wrong)
+    printf("\nRunning BFS\n");
+    std::vector<uint> ordering;
+    graph::bfs(graph, 0, graph::accumulate_nodes, (void*) &ordering);
+    for (auto n : ordering) {
+        printf("node: %i\n", n);
+    }
+
+    // run dfs and accumulate nodes in bfs ordering using dat void* cast (this feels wrong)
+    printf("\nRunning DFS\n");
+    ordering.clear();
+    graph::dfs(graph, 0, graph::accumulate_nodes, (void*) &ordering);
+    for (auto n : ordering) {
+        printf("node: %i\n", n);
     }
 
     // free the graph

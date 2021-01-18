@@ -4,6 +4,8 @@ Goal is just to get something quick and dirty working here, can optimize / refac
 
 TODO: graph is almost certainly not memory-efficient. Try to allocate contiguously wrt to spatial adjacency?
 */
+#pragma once
+
 #include <stdlib.h>
 #include <assert.h>
 

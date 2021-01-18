@@ -25,10 +25,16 @@ if( MSVC )
 endif()
 
 # Set Source
+<<<<<<< HEAD
 set( OPINION-DYNAMICS-SRC src/main.cpp)
+=======
+# set( OPINION-DYNAMICS-SRC main.cpp)
+set( OPINION-DYNAMICS-SRC graph_test.cpp)
+>>>>>>> f094315fdee890542495e9746e5cb2d270de1596
 
 # Add WIN32 Executable
-add_executable(opinion-dynamics WIN32 ${OPINION-DYNAMICS-SRC})
+# add_executable(opinion-dynamics WIN32 ${OPINION-DYNAMICS-SRC})
+add_executable(opinion-dynamics ${OPINION-DYNAMICS-SRC})
 #  link OpenGL, GLFW, and OpenAL
 target_link_libraries(opinion-dynamics ${OPENGL_LIBRARIES} glfw ${OPENAL_LIBRARY} $ENV{LIBSND_LIBRARY})
 # MSVC project

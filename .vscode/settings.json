@@ -1,7 +1,0 @@
-{
-    "files.associations": {
-        "exception": "cpp",
-        "vector": "cpp",
-        "xutility": "cpp"
-    }
-}
