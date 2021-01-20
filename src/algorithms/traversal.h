@@ -10,7 +10,8 @@
 namespace graph {
 
     // Function that can just grab 
-    void accumulate_nodes(Graph graph, uint node, void* ordering) {
+    void 
+    accumulate_nodes(Graph graph, uint node, void* ordering) {
         ((std::vector<uint>*) ordering)->push_back(node);
     }
 

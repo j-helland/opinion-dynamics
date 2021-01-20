@@ -1,20 +1,21 @@
 echo -e
 
-# Need to tell fucking cmake where openal is
-if [[ -z "${OPENALDIR}" ]]; then
-    echo "OPENALDIR env variable already set."
+# thank you John Luke Lusty
+echo "Detected OS $OSTYPE"
+if [[ "$OSTYPE" == "msys" ]]; then
+    setx OPENALDIR          "C:\Program Files (x86)\OpenAL 1.1 SDK"
+    setx LIBSND_INCLUDE_DIR "C:\Program Files\Mega-Nerd\libsndfile\include"
+    setx LIBSND_LIBRARY     "C:\Program Files\Mega-Nerd\libsndfile\lib\libsndfile-1.lib"
 else
-    echo "SURE HOPE YOU'RE USING WINDOWS FOR THIS LOL"
-    export OPENALDIR="/c/Program\ Files\ \(x86\)/OpenAL\ 1.1\ SDK/"
+    echo "Go fuck yourself"
 fi
 
-(
-    if [[ ! -d build ]]; then
-        echo "No build directory found, creating..."
-        mkdir build
-    fi
-    cd build
+echo "GO RELOAD YOUR ENV, FUCK-ASS"
 
-    echo "Running cmake..."
-    cmake -DOPENALDIR=$OPENALDIE .. -B ../bin
-)
+echo "ENV:"
+echo "  OPENALDIR=$OPENALDIR"
+echo "  LIBSND_INCLUDE_DIR=$LIBSND_INCLUDE_DIR"
+echo "  LIBSND_LIBRARY=$LIBSND_LIBRARY"
+
+echo "Running cmake..."
+cmake . -B bin

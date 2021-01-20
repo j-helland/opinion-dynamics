@@ -50,7 +50,7 @@ int main(void)
 	//  open audio file and check that it's usable
     std::string cpath = std::filesystem::current_path().string();
     std::cout << "(debug) Current path is '" << cpath << "'\n";
-	sndfile = sf_open("..\\..\\res\\sound.ogg", SFM_READ, &sfinfo);
+	sndfile = sf_open("../res/sound.ogg", SFM_READ, &sfinfo);
 	if(!sndfile) {
 		std::cout << "(libsnd) Could not open audio at sound.ogg\n";
 		return EXIT_FAILURE;

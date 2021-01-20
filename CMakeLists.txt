@@ -21,6 +21,7 @@ include_directories( ${OPENAL_INCLUDE_DIR} )
 # include libsnd
 # NOTE: uses $LIBSND_INCLUDE_DIR and $LIBSND_LIBRARY
 include_directories( $ENV{LIBSND_INCLUDE_DIR} )
+# message(STATUS "LIBSND_INCLUDE_DIR=$ENV{LIBSND_INCLUDE_DIR}")
 
 # MSVC linker flags
 if( MSVC )
