@@ -10,33 +10,39 @@
 #include "../random.h"  // rng::
 #include "../data_structures/graph.h"  // graph::
 
-static std::bernoulli_distribution bernoulli_dist(0.5);
+// static std::bernoulli_distribution bernoulli_dist(0.5);
+// static std::binomial_distribution binomial_dist;
 
 // forward declarations
 void init_graph_opinions(graph::Graph* graph);
-std::pair<graph::Node*, graph::Node*> sample_nodes(const graph::Graph* graph);
+std::pair<graph::Node*, graph::Node*> sample_nodes(const graph::Graph* graph, float prob);
 void step_dynamics(std::pair<graph::Node*, graph::Node*>& node_pair);
 bool is_consensus_reached(graph::Graph* graph);
 
 // Implementations
 void init_graph_opinions(graph::Graph* graph) {
+    std::bernoulli_distribution dist(0.5);
+
     for (uint i = 0; i < graph->num_nodes; ++i) {
-        graph->nodes[i]->properties->opinion = bernoulli_dist(rng::generator);
+        graph->nodes[i]->properties->opinion = dist(rng::generator);
     }
 }
 
 std::pair<graph::Node*, graph::Node*>
-sample_nodes(const graph::Graph* graph) {
+sample_nodes(const graph::Graph* graph, float prob = 0.5) {
+    static std::binomial_distribution dist(graph->num_nodes - 1, prob);
+
     if (! graph->num_edges) {
         throw "Graph has no edges!";
     }
 
     // randomly select a node and neighbor
-    auto node = graph->nodes[rand() % graph->num_nodes];
+    auto node = graph->nodes[dist(rng::generator)];
     while (! node->num_adjacent) {
-        node = graph->nodes[rand() % graph->num_nodes];
+        node = graph->nodes[dist(rng::generator)];
     }
-    auto neighbor = graph->nodes[ node->adjacent[rand() % node->num_adjacent] ];
+    dist = std::binomial_distribution(node->num_adjacent - 1, prob);  // need to reset the least upper bound
+    auto neighbor = graph->nodes[ node->adjacent[dist(rng::generator)] ];
 
     return std::make_pair(node, neighbor);
 }
