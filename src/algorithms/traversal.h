@@ -11,7 +11,7 @@ namespace graph {
 
     // Function that can just grab 
     void 
-    accumulate_nodes(Graph graph, uint node, void* ordering) {
+    accumulate_nodes(const Graph* graph, uint node, void* ordering) {
         ((std::vector<uint>*) ordering)->push_back(node);
     }
 
@@ -19,8 +19,8 @@ namespace graph {
     // Allows an optional custom function to apply to nodes over the course of the traversal.
     void
     bfs(
-        const Graph graph, uint source, 
-        void (*f) (Graph graph, uint node, void* data) = nullptr,
+        const Graph* graph, uint source, 
+        void (*f) (const Graph* graph, uint node, void* data) = nullptr,
         void* data = nullptr
     ) {
         std::unordered_set<uint> visited;
@@ -46,8 +46,8 @@ namespace graph {
 
     void
     dfs(
-        const Graph graph, uint source, 
-        void (*f) (Graph graph, uint node, void* data) = nullptr,
+        const Graph* graph, uint source, 
+        void (*f) (const Graph* graph, uint node, void* data) = nullptr,
         void* data = nullptr
     ) {
         std::unordered_set<uint> visited;

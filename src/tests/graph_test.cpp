@@ -1,18 +1,18 @@
 #include <stdio.h>
 #include <assert.h>
 
-#include "types.h"
-#include "data_structures/graph.h"
-#include "algorithms/traversal.h"
+#include "../types.h"
+#include "../data_structures/graph.h"
+#include "../algorithms/traversal.h"
 
 #define TEST_SIZE (5)
 
-static void match_dest(graph::Graph graph, uint source, uint dest, void* data) {
+static void match_dest(graph::Graph* graph, uint source, uint dest, void* data) {
     assert( data && dest == *((uint*) data));
 }
 
 int main(void) {
-    graph::Graph graph = graph::make(TEST_SIZE);
+    graph::Graph* graph = graph::make(TEST_SIZE);
     assert( graph->num_nodes == TEST_SIZE );
 
     uint n, k;

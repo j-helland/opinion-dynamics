@@ -30,8 +30,8 @@ endif()
 
 # Set Source
 set( OPINION-DYNAMICS-SRC src/main.cpp)
-# set( OPINION-DYNAMICS-SRC main.cpp)
-# set( OPINION-DYNAMICS-SRC graph_test.cpp)
+# set( OPINION-DYNAMICS-SRC src/tests/graph_test.cpp )
+# set( OPINION-DYNAMICS-SRC src/tests/voter_model_test.cpp )
 
 # Add WIN32 Executable
 # add_executable(opinion-dynamics WIN32 ${OPINION-DYNAMICS-SRC})

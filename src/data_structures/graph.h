@@ -13,9 +13,9 @@ TODO: graph is almost certainly not memory-efficient. Try to allocate contiguous
 
 namespace graph {
     //// Types
-    typedef struct graph* Graph;
-    typedef struct node* Node;
-    typedef struct properties* Properties;
+    typedef struct graph Graph;
+    typedef struct node Node;
+    typedef struct properties Properties;
 
     //// forward declarations
     // structs
@@ -24,27 +24,28 @@ namespace graph {
     struct graph;
 
     // functions
-    Graph make(uint, bool);
-    void destroy(Graph);
-    bool has_node(const Graph, uint);
-    int degree(const Graph, uint);
+    Graph* make(uint, bool);
+    void destroy(Graph*);
+    bool has_node(const Graph*, uint);
+    int degree(const Graph*, uint);
     static int intcmp(const void*, const void*);
-    int has_edge(const Graph, uint, uint);
-    void add_edge(Graph, uint, uint);
-    void foreach(Graph graph, uint source, void (*f) (Graph graph, uint source, uint dest, void* data), void* data);
+    int has_edge(const Graph*, uint, uint);
+    void add_edge(Graph*, uint, uint);
+    void foreach(Graph* graph, uint source, void (*f) (Graph* graph, uint source, uint dest, void* data), void* data);
 
 
     //// Implementations
     struct properties {
         float x, y;
+        bool opinion;
     };
 
     // Graph node with adjacency list.
     struct node {
         uint num_adjacent;
         uint num_slots;  // number of array slots
-        Properties properties;
-        char is_sorted;  // true if list is sorted
+        Properties* properties;
+        bool is_sorted;  // true if list is sorted
                          // NOTE: all types except char require alignment since char is 1 byte (cf. http://www.catb.org/esr/structure-packing/)
         uint adjacent[1];  // adjacency list 
     };
@@ -53,29 +54,29 @@ namespace graph {
     struct graph {
         uint num_nodes;
         uint num_edges;
-        char is_undirected;
+        bool is_undirected;
 
-        Node nodes[1];
+        Node* nodes[1];
     };
 
     // Create a graph with num_nodes vertices, no edges.
     // Graph is heap-allocated via malloc.
-    Graph 
+    Graph* 
     make(uint num_nodes, bool undirected = false) {
         // this ain't fuckin C, homie -- explicit cast that void*
-        Graph graph = (Graph) malloc(sizeof(struct graph) + sizeof(Node) * (num_nodes - 1));
+        Graph* graph = (Graph*) malloc(sizeof(struct graph) + sizeof(Node*) * (num_nodes - 1));
         assert(graph);
 
         graph->num_nodes = num_nodes;
         graph->num_edges = 0;
 
         for (uint i = 0; i < num_nodes; ++i) {
-            graph->nodes[i] = (Node) malloc(sizeof(struct node));
+            graph->nodes[i] = (Node*) malloc(sizeof(struct node));
             assert(graph->nodes[i]);
 
             // initialize all spatial locations as 0.f
             // TODO: allow uninitialized?
-            graph->nodes[i]->properties = (Properties) malloc(sizeof(struct properties));
+            graph->nodes[i]->properties = (Properties*) malloc(sizeof(struct properties));
             assert(graph->nodes[i]->properties);
             graph->nodes[i]->properties->x 
                 = graph->nodes[i]->properties->y 
@@ -93,7 +94,7 @@ namespace graph {
 
     // Free the heap-allocated memory for a graph struct.
     void 
-    destroy(Graph graph) {
+    destroy(Graph* graph) {
         for (uint i = 0; i < graph->num_nodes; ++i) {
             free(graph->nodes[i]->properties);
             free(graph->nodes[i]);
@@ -102,13 +103,13 @@ namespace graph {
     }
         
     bool 
-    has_node(const Graph graph, uint node) {
+    has_node(const Graph* graph, uint node) {
         return (node < graph->num_nodes);
     }
     
     // Get count of adjacent nodes to a query node that exists in the graph.
     int 
-    degree(const Graph graph, uint node) {
+    degree(const Graph* graph, uint node) {
         assert( has_node(graph, node) == 1 );
         return graph->nodes[node]->num_adjacent;
     }
@@ -123,7 +124,7 @@ namespace graph {
     // Return 1 if edge (source, dest) exists, 0 otherwise.
     // O(n log n) on first call due to possible sorting, but subsequent calls without the addition of edges will be faster.
     int 
-    has_edge(const Graph graph, uint source, uint dest) {
+    has_edge(const Graph* graph, uint source, uint dest) {
         assert( has_node(graph, source) == 1 );
         assert( has_node(graph, dest) == 1 );
 
@@ -158,7 +159,7 @@ namespace graph {
 
     // Add an edge to an existing graph.
     void 
-    add_edge(Graph graph, uint u, uint v) {
+    add_edge(Graph* graph, uint u, uint v) {
         assert( has_node(graph, u) == 1 );
         assert( has_node(graph, v) == 1 );
 
@@ -170,7 +171,7 @@ namespace graph {
         // grow the list by powers of 2 if we have too many edges
         while (graph->nodes[u]->num_adjacent >= graph->nodes[u]->num_slots) {
             graph->nodes[u]->num_slots *= 2;
-            graph->nodes[u] = (Node) realloc(graph->nodes[u], 
+            graph->nodes[u] = (Node*) realloc(graph->nodes[u], 
                 sizeof(struct node) + sizeof(int) * (graph->nodes[u]->num_slots - 1));
         }
 
@@ -193,8 +194,8 @@ namespace graph {
     // NOTE: there is no guaranteed ordering to the edges.
     void
     foreach(
-        Graph graph, uint source, 
-        void (*f) (Graph graph, uint source, uint dest, void* data), 
+        Graph* graph, uint source, 
+        void (*f) (Graph* graph, uint source, uint dest, void* data), 
         void* data
     ) {
         assert( has_node(graph, source) );
