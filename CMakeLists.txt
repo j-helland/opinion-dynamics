@@ -8,10 +8,14 @@ project(opinion-dynamics)
 # OpenGL
 find_package(OpenGL REQUIRED)
 include_directories(${OPENGL_INCLUDE_DIRS})
-# GLFW
+#  GLAD
+include_directories(glad/include)
+#  GLFW
 set( GLFW_BUILD_DOCS OFF CACHE BOOL  "GLFW lib only" )
 set( GLFW_INSTALL OFF CACHE BOOL  "GLFW lib only" )
 add_subdirectory( glfw )
+#  GLM
+include_directories( glm-0.9.9.8 )
 
 # include FindOpenAL, defines OPENAL_INCLUDE_DIR and OPENAL_LIBRARY
 # NOTE: uses ENV $OPENALDIR for HINT
@@ -29,7 +33,7 @@ if( MSVC )
 endif()
 
 # Set Source
-set( OPINION-DYNAMICS-SRC src/main.cpp)
+set( OPINION-DYNAMICS-SRC src/glad.c src/main.cpp)
 # set( OPINION-DYNAMICS-SRC main.cpp)
 # set( OPINION-DYNAMICS-SRC graph_test.cpp)
 
