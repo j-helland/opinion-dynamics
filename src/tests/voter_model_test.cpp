@@ -10,7 +10,7 @@
 
 void print_network(const graph::Graph* graph) {
     printf("Opinions:\n");
-    for (uint i = 0; i < graph->num_nodes; ++i) {
+    for (uint i = 0; i < graph->nodes.size(); ++i) {
         printf("\tNode %i, opinion %i\n", i, graph->nodes[i]->properties->opinion);
     }
 }
@@ -19,8 +19,8 @@ int main(void) {
     auto graph = graph::make(TEST_SIZE);  // undirected graph
     init_graph_opinions(graph);  // uniform-random opinions
     // add edges
-    for (uint n = 0; n < graph->num_nodes; ++n) {
-        for (uint k = 0; k < graph->num_nodes; ++k) {
+    for (uint n = 0; n < graph->nodes.size(); ++n) {
+        for (uint k = 0; k < graph->nodes.size(); ++k) {
             if (n == k) continue;
             graph::add_edge(graph, n, k);
         }

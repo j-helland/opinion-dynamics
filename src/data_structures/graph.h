@@ -4,10 +4,15 @@ Goal is just to get something quick and dirty working here, can optimize / refac
 
 TODO: graph is almost certainly not memory-efficient. Try to allocate contiguously wrt to spatial adjacency?
 */
-#pragma once
+#ifndef GRAPH
+#define GRAPH
+
 
 #include <stdlib.h>
 #include <assert.h>
+#include <unordered_set>
+#include <tuple>
+#include <vector>
 
 #include "../types.h"
 
@@ -16,6 +21,7 @@ namespace graph {
     typedef struct graph Graph;
     typedef struct node Node;
     typedef struct properties Properties;
+    typedef std::pair<uint, uint> edge_t;
 
     //// forward declarations
     // structs
@@ -51,32 +57,34 @@ namespace graph {
     };
 
     // Basic graph struct with list of node structs.
+    struct edge_hash {
+        inline std::size_t operator()(const edge_t& p) const {
+            return std::hash<uint>()(p.first) ^ std::hash<uint>()(p.second);
+        }
+    };
     struct graph {
-        uint num_nodes;
-        uint num_edges;
         bool is_undirected;
 
-        Node* nodes[1];
+        std::vector<Node*> nodes;
+        std::unordered_set<edge_t, edge_hash> edges;
     };
 
     // Create a graph with num_nodes vertices, no edges.
     // Graph is heap-allocated via malloc.
     Graph* 
     make(uint num_nodes, bool undirected = false) {
-        // this ain't fuckin C, homie -- explicit cast that void*
-        Graph* graph = (Graph*) malloc(sizeof(struct graph) + sizeof(Node*) * (num_nodes - 1));
+        Graph* graph = new Graph;
         assert(graph);
 
-        graph->num_nodes = num_nodes;
-        graph->num_edges = 0;
+        graph->nodes.reserve(num_nodes);
 
         for (uint i = 0; i < num_nodes; ++i) {
-            graph->nodes[i] = (Node*) malloc(sizeof(struct node));
+            graph->nodes.push_back( (Node*) malloc(sizeof(Node)) );
             assert(graph->nodes[i]);
 
             // initialize all spatial locations as 0.f
             // TODO: allow uninitialized?
-            graph->nodes[i]->properties = (Properties*) malloc(sizeof(struct properties));
+            graph->nodes[i]->properties = (Properties*) malloc(sizeof(Properties));
             assert(graph->nodes[i]->properties);
             graph->nodes[i]->properties->x 
                 = graph->nodes[i]->properties->y 
@@ -87,7 +95,7 @@ namespace graph {
             graph->nodes[i]->is_sorted = 1;  // we initialize the adjacency lists in sorted order trivially
         }
 
-        graph->is_undirected = (char) undirected;
+        // graph->is_undirected = (char) undirected;
 
         return graph;
     }
@@ -95,16 +103,19 @@ namespace graph {
     // Free the heap-allocated memory for a graph struct.
     void 
     destroy(Graph* graph) {
-        for (uint i = 0; i < graph->num_nodes; ++i) {
+        for (uint i = 0; i < graph->nodes.size(); ++i) {
+            // delete graph->nodes[i]->properties;
+            // delete graph->nodes[i];
             free(graph->nodes[i]->properties);
             free(graph->nodes[i]);
         }
-        free(graph);
+        // free(graph);
+        delete graph;
     }
         
     bool 
     has_node(const Graph* graph, uint node) {
-        return (node < graph->num_nodes);
+        return (node < graph->nodes.size());
     }
     
     // Get count of adjacent nodes to a query node that exists in the graph.
@@ -128,33 +139,38 @@ namespace graph {
         assert( has_node(graph, source) == 1 );
         assert( has_node(graph, dest) == 1 );
 
-        // If the node has a relatively high degree, do a faster typically O(log n) search.
-        // In this case, it's probably worth taking the rare O(n log n) sorting hit to be faster later.
-        if (degree(graph, source) >= BSEARCH_THRESHOLD) {
-            // sort
-            if (! graph->nodes[source]->is_sorted) {
-                qsort(graph->nodes[source]->adjacent, 
-                    graph->nodes[source]->num_adjacent, 
-                    sizeof(int), 
-                    intcmp);
-            }
-            // binary search to find the node
-            return 0 != bsearch(
-                &dest,
-                graph->nodes[source]->adjacent,
-                graph->nodes[source]->num_adjacent,
-                sizeof(int),
-                intcmp);
-        }
-        // Do a linear search if the adjacency list is small to avoid running a bunch of sorting operations.
-        else {
-            for (uint i = 0; i < graph->nodes[source]->num_adjacent; ++i) {
-                if (graph->nodes[source]->adjacent[i] == dest) {
-                    return 1;
-                }
-            }
-            return 0;
-        }
+        if (graph->edges.empty()) return 0;
+
+        bool ret = ( graph->edges.find(std::make_pair(source, dest)) != graph->edges.end() );
+        return ret;
+
+        // // If the node has a relatively high degree, do a faster typically O(log n) search.
+        // // In this case, it's probably worth taking the rare O(n log n) sorting hit to be faster later.
+        // if (degree(graph, source) >= BSEARCH_THRESHOLD) {
+        //     // sort
+        //     if (! graph->nodes[source]->is_sorted) {
+        //         qsort(graph->nodes[source]->adjacent, 
+        //             graph->nodes[source]->num_adjacent, 
+        //             sizeof(int), 
+        //             intcmp);
+        //     }
+        //     // binary search to find the node
+        //     return 0 != bsearch(
+        //         &dest,
+        //         graph->nodes[source]->adjacent,
+        //         graph->nodes[source]->num_adjacent,
+        //         sizeof(int),
+        //         intcmp);
+        // }
+        // // Do a linear search if the adjacency list is small to avoid running a bunch of sorting operations.
+        // else {
+        //     for (uint i = 0; i < graph->nodes[source]->num_adjacent; ++i) {
+        //         if (graph->nodes[source]->adjacent[i] == dest) {
+        //             return 1;
+        //         }
+        //     }
+        //     return 0;
+        // }
     }
 
     // Add an edge to an existing graph.
@@ -168,11 +184,11 @@ namespace graph {
             return;
         }
 
-        // grow the list by powers of 2 if we have too many edges
+        // grow the adjacency list by powers of 2 if we have too many edges
         while (graph->nodes[u]->num_adjacent >= graph->nodes[u]->num_slots) {
             graph->nodes[u]->num_slots *= 2;
             graph->nodes[u] = (Node*) realloc(graph->nodes[u], 
-                sizeof(struct node) + sizeof(int) * (graph->nodes[u]->num_slots - 1));
+                sizeof(Node) + sizeof(int) * (graph->nodes[u]->num_slots - 1));
         }
 
         // add the new edge
@@ -181,13 +197,16 @@ namespace graph {
 
         // increment counts
         graph->nodes[u]->num_adjacent++;
-        graph->num_edges++;
+        // graph->num_edges++;
 
-        // in undirected case, call again
-        if (graph->is_undirected) {
-            add_edge(graph, v, u);
-            graph->num_edges--;  // need to decrement b/c of symmetry
-        }
+        // // in undirected case, call again
+        // if (graph->is_undirected) {
+        //     add_edge(graph, v, u);
+        //     graph->num_edges--;  // need to decrement b/c of symmetry
+        // }
+
+        // update edge set
+        graph->edges.insert(std::make_pair(u, v));
     }
 
     // Invoke a function `f` over all edges (source, dest) with `data` supplied as the final parameter to `f`.
@@ -205,3 +224,6 @@ namespace graph {
     }
 
 } // end namespace
+
+
+#endif

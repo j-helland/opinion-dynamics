@@ -10,9 +10,6 @@
 #include "../random.h"  // rng::
 #include "../data_structures/graph.h"  // graph::
 
-// static std::bernoulli_distribution bernoulli_dist(0.5);
-// static std::binomial_distribution binomial_dist;
-
 // forward declarations
 void init_graph_opinions(graph::Graph* graph);
 std::pair<graph::Node*, graph::Node*> sample_nodes(const graph::Graph* graph, float prob);
@@ -23,16 +20,16 @@ bool is_consensus_reached(graph::Graph* graph);
 void init_graph_opinions(graph::Graph* graph) {
     std::bernoulli_distribution dist(0.5);
 
-    for (uint i = 0; i < graph->num_nodes; ++i) {
+    for (uint i = 0; i < graph->nodes.size(); ++i) {
         graph->nodes[i]->properties->opinion = dist(rng::generator);
     }
 }
 
 std::pair<graph::Node*, graph::Node*>
 sample_nodes(const graph::Graph* graph, float prob = 0.5) {
-    static std::binomial_distribution dist(graph->num_nodes - 1, prob);
+    static std::binomial_distribution dist( (uint) graph->nodes.size() - 1, prob);
 
-    if (! graph->num_edges) {
+    if (! graph->edges.size()) {
         throw "Graph has no edges!";
     }
 
@@ -62,7 +59,7 @@ bool
 is_consensus_reached(graph::Graph* graph) {
     bool opinion = graph->nodes[0]->properties->opinion;
 
-    for (uint i = 0; i < graph->num_nodes; ++i) {
+    for (uint i = 0; i < graph->nodes.size(); ++i) {
         if (graph->nodes[i]->properties->opinion != opinion) {
             return false;
         }

@@ -13,7 +13,7 @@ static void match_dest(graph::Graph* graph, uint source, uint dest, void* data) 
 
 int main(void) {
     graph::Graph* graph = graph::make(TEST_SIZE);
-    assert( graph->num_nodes == TEST_SIZE );
+    assert( graph->nodes.size() == TEST_SIZE );
 
     uint n, k;
 
@@ -23,12 +23,14 @@ int main(void) {
     }
 
     // check that it's empty
-    printf("Empty check has_edge\n");
-    for (n = 0; n < TEST_SIZE; ++n) {
-        for (k = 0; k < TEST_SIZE; ++k) {
-            assert( graph::has_edge(graph, n, k) == 0 );
-        }
-    }
+    printf("Check that no edges exist\n");
+    assert( graph->edges.empty() );
+    // printf("Empty check has_edge\n");
+    // for (n = 0; n < TEST_SIZE; ++n) {
+    //     for (k = 0; k < TEST_SIZE; ++k) {
+    //         assert( graph::has_edge(graph, n, k) == 0 );
+    //     }
+    // }
 
     // another empty check
     printf("Empty check degree, foreach match_dest\n");
@@ -38,7 +40,7 @@ int main(void) {
     }
 
     // make sure no edges somehow exist
-    assert( graph->num_edges == 0 );
+    assert( graph->edges.size() == 0 );
 
     // check spatial coordinates
     printf("Check that all node spatial coordinates are initialized to zero.\n");
@@ -56,7 +58,7 @@ int main(void) {
     for (n = 0; n < TEST_SIZE; ++n) {
         graph::add_edge(graph, n, n);
     }
-    assert( graph->num_edges == TEST_SIZE );
+    assert( graph->edges.size() == TEST_SIZE );
     for (n = 0; n < TEST_SIZE; ++n) {
         for (k = 0; k < TEST_SIZE; ++k) {
             assert( graph::has_edge(graph, n, k) == (n == k) );
@@ -66,6 +68,10 @@ int main(void) {
         assert( graph::degree(graph, n) == 1 );
         graph::foreach(graph, n, match_dest, &n);
     }
+    printf("Edges:\n");
+    for (auto edge : graph->edges) {
+        printf("\t(%i -> %i)\n", edge.first, edge.second);
+    }
 
     // complete the graph
     for (n = 0; n < TEST_SIZE; ++n) {
@@ -73,12 +79,16 @@ int main(void) {
             graph::add_edge(graph, n, k);
         }
     }
-    assert( graph->num_edges == TEST_SIZE * TEST_SIZE );
+    assert( graph->edges.size() == TEST_SIZE * TEST_SIZE );
     for (n = 0; n < TEST_SIZE; ++n) {
         assert( graph::degree(graph, n) == TEST_SIZE );
         for (k = 0; k < TEST_SIZE; ++k) {
             assert( graph::has_edge(graph, n, k) == 1 );
         }
+    }
+    printf("Edges:\n");
+    for (auto edge : graph->edges) {
+        printf("\t(%i -> %i)\n", edge.first, edge.second);
     }
 
     // run bfs and accumulate nodes in bfs ordering using dat void* cast (this feels wrong)
