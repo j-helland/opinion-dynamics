@@ -19,8 +19,13 @@
 extern Camera camera;
 
 // Node Positions and Colors
-extern glm::vec3 nodePositions[];
-extern glm::vec3 nodeColors[];
+//extern glm::vec3 nodePositions[];
+//extern glm::vec3 nodeColors[];
+
+#include "types.h"
+#include "data_structures/graph.h"
+#include "models/voter_model.h"
+extern graph::Graph* graph1;
 
 namespace graphics {
     // GLFW window
@@ -236,7 +241,7 @@ namespace graphics {
         // transformation matrices
         glm::mat4 view  = glm::mat4(1.0f);
         glm::mat4 proj  = glm::mat4(1.0f);
-        view = glm::translate(view, glm::vec3(camera.x, camera.y, -3.0f + camera.z));
+        view = glm::translate(view, glm::vec3(camera.x, camera.y, -100.0f + camera.z));
         //proj = glm::ortho(0.0f, (GLfloat)graphics::scr_width, 0.0f, (GLfloat)graphics::scr_height, 0.1f, 100.0f);
         proj = glm::perspective(glm::radians(45.0f), (float)scr_width/(float)scr_height, 0.1f, 100.f);
         // get their uniform locations
@@ -248,15 +253,19 @@ namespace graphics {
 
         // render nodes
         glBindVertexArray(VAO);
-        for (int i = 0; i < 2; i++) {
+        for (uint n = 0; n < graph1->nodes.size(); ++n) {
             // set model matrix
             glm::mat4 model = glm::mat4(1.0f);
-            model = glm::translate(model, nodePositions[i]);
+            glm::vec3 nodePosition{ graph1->nodes[n]->properties->x, graph1->nodes[n]->properties->y, 0.0f };
+            model = glm::translate(model, nodePosition);
             GLuint modelLoc = glGetUniformLocation(shaderProgram, "model");
             glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
             // set color
             GLuint colorLoc = glGetUniformLocation(shaderProgram, "nodeColor");
-            glUniform3fv(colorLoc, 1, glm::value_ptr(nodeColors[i]));
+            glm::vec3 green{ 0.0f, 1.0f, 0.0f };
+            glm::vec3 red{ 1.0f, 0.0f, 0.0f };
+            glm::vec3 nodeColor = graph1->nodes[n]->properties->opinion?green:red;
+            glUniform3fv(colorLoc, 1, glm::value_ptr(nodeColor));
             // draw nodes
             glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         }
