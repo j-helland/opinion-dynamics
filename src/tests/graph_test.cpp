@@ -2,6 +2,7 @@
 #include <assert.h>
 
 #include "../types.h"
+#include "../random.h"
 #include "../data_structures/graph.h"
 #include "../algorithms/traversal.h"
 
@@ -25,12 +26,6 @@ int main(void) {
     // check that it's empty
     printf("Check that no edges exist\n");
     assert( graph->edges.empty() );
-    // printf("Empty check has_edge\n");
-    // for (n = 0; n < TEST_SIZE; ++n) {
-    //     for (k = 0; k < TEST_SIZE; ++k) {
-    //         assert( graph::has_edge(graph, n, k) == 0 );
-    //     }
-    // }
 
     // another empty check
     printf("Empty check degree, foreach match_dest\n");
@@ -74,18 +69,21 @@ int main(void) {
     }
 
     // complete the graph
+    std::bernoulli_distribution dist(0.5);
     for (n = 0; n < TEST_SIZE; ++n) {
         for (k = 0; k < TEST_SIZE; ++k) {
-            graph::add_edge(graph, n, k);
+            if (dist(rng::generator)) {
+                graph::add_edge(graph, n, k);
+            }
         }
     }
-    assert( graph->edges.size() == TEST_SIZE * TEST_SIZE );
-    for (n = 0; n < TEST_SIZE; ++n) {
-        assert( graph::degree(graph, n) == TEST_SIZE );
-        for (k = 0; k < TEST_SIZE; ++k) {
-            assert( graph::has_edge(graph, n, k) == 1 );
-        }
-    }
+    // assert( graph->edges.size() == TEST_SIZE * TEST_SIZE );
+    // for (n = 0; n < TEST_SIZE; ++n) {
+    //     assert( graph::degree(graph, n) == TEST_SIZE );
+    //     for (k = 0; k < TEST_SIZE; ++k) {
+    //         assert( graph::has_edge(graph, n, k) == 1 );
+    //     }
+    // }
     printf("Edges:\n");
     for (auto edge : graph->edges) {
         printf("\t(%i -> %i)\n", edge.first, edge.second);

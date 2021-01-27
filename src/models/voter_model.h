@@ -27,7 +27,8 @@ void init_graph_opinions(graph::Graph* graph) {
 
 std::pair<graph::Node*, graph::Node*>
 sample_nodes(const graph::Graph* graph, float prob = 0.5) {
-    static std::binomial_distribution dist( (uint) graph->nodes.size() - 1, prob);
+    // static std::binomial_distribution dist( (uint) graph->nodes.size() - 1, prob);
+    static std::uniform_int_distribution dist(0, (int) graph->nodes.size() - 1);
 
     if (! graph->edges.size()) {
         throw "Graph has no edges!";
@@ -38,7 +39,7 @@ sample_nodes(const graph::Graph* graph, float prob = 0.5) {
     while (! node->num_adjacent) {
         node = graph->nodes[dist(rng::generator)];
     }
-    dist = std::binomial_distribution(node->num_adjacent - 1, prob);  // need to reset the least upper bound
+    dist = std::binomial_distribution( (uint) node->num_adjacent - 1, prob);  // need to reset the least upper bound
     auto neighbor = graph->nodes[ node->adjacent[dist(rng::generator)] ];
 
     return std::make_pair(node, neighbor);

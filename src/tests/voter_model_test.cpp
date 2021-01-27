@@ -5,7 +5,7 @@
 #include "../data_structures/graph.h"
 #include "../models/voter_model.h"
 
-#define TEST_SIZE (5)
+#define TEST_SIZE (64)
 #define TEST_SIMULATION_STEPS (100)
 
 void print_network(const graph::Graph* graph) {
