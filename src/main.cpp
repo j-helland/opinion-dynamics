@@ -30,18 +30,6 @@ struct Mouse {
 };
 Mouse mouse;
 
-// Example Nodes Attributes
-// Node Positions
-glm::vec3 nodePositions[] = {
-    glm::vec3(0.0f, 0.0f, 0.0f),
-    glm::vec3(1.0f, 0.0f, 0.0f)
-};
-// Node Colors
-glm::vec3 nodeColors[] = {
-    glm::vec3(1.0f, 0.0f, 0.0f),
-    glm::vec3(0.0f, 1.0f, 1.0f)
-};
-
 // TODO (jæn)
 // 1 - Implement another model of your discretion
 // 2 - Think about allocation strategies for edges
