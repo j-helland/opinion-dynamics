@@ -41,8 +41,9 @@ namespace graphics {
     // Buffer Objects
     GLuint VBO, VAO, EBO;
     
-    // Texture
-    GLuint texture;
+    // Textures
+    GLuint texture1;    // Node
+    GLuint texture2;    // Edge
 
     // Init Graphics (Start GLFW, Load OpenGL with GLAD)
     void init(void);
@@ -154,7 +155,7 @@ namespace graphics {
         // node position
         float node_x{ 0.0f }, node_y{ 0.0f };
         // node radius
-        float node_r{ 0.2f };
+        float node_r{ 1.f };
         // vertex data
         GLfloat vertices[] = {
             // positions                           // colors          // texture coords
@@ -200,10 +201,10 @@ namespace graphics {
     }
 
     // Load Texture
-    void load_texture(const char* filename) {
+    void load_texture(const char* filename, GLuint* texture) {
         /* Load Node Texture */
-        glGenTextures(1, &texture);
-        glBindTexture(GL_TEXTURE_2D, texture);
+        glGenTextures(1, texture);
+        glBindTexture(GL_TEXTURE_2D, *texture);
         // set texture wrapping parameters
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -220,10 +221,14 @@ namespace graphics {
             fprintf(stderr, "(stb) Could not load %s\n", filename);
         }
         stbi_image_free(data);
+    }
+
+    // Define Shader Texture Samplers
+    void set_textures(void) {
         // Set Shader Uniforms */
         glUseProgram(shaderProgram);
-        // texture
         glUniform1i(glGetUniformLocation(shaderProgram, "texture1"), 0);
+        glUniform1i(glGetUniformLocation(shaderProgram, "texture2"), 1);
     }
 
     // Display Scene
@@ -232,16 +237,17 @@ namespace graphics {
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        // bind texture
-        glBindTexture(GL_TEXTURE_2D, texture);
-
+        // bind textures to texture units
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, texture1);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, texture2);
         // activate shader
         glUseProgram(shaderProgram);
-
         // transformation matrices
         glm::mat4 view  = glm::mat4(1.0f);
         glm::mat4 proj  = glm::mat4(1.0f);
-        view = glm::translate(view, glm::vec3(camera.x, camera.y, -100.0f + camera.z));
+        view = glm::translate(view, glm::vec3(camera.x, camera.y, -32.0f + camera.z));
         //proj = glm::ortho(0.0f, (GLfloat)graphics::scr_width, 0.0f, (GLfloat)graphics::scr_height, 0.1f, 100.0f);
         proj = glm::perspective(glm::radians(45.0f), (float)scr_width/(float)scr_height, 0.1f, 100.f);
         // get their uniform locations
@@ -251,8 +257,38 @@ namespace graphics {
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(proj));
 
-        // render nodes
+        GLuint selectLoc = glGetUniformLocation(shaderProgram, "selection");
+
+        // bind vertices of unit quad (+/-1,+/-1)
         glBindVertexArray(VAO);
+
+        // Render wires
+        GLint selection = 2;
+        glUniform1i(selectLoc, selection);
+        for(const auto& elem: graph1->edges) {
+            auto node1 = graph1->nodes[elem.first];
+            auto node2 = graph1->nodes[elem.second];
+            float x1 = node1->properties->x;
+            float y1 = node1->properties->y;
+            float x2 = node2->properties->x;
+            float y2 = node2->properties->y;
+            float dist = sqrt((x2-x1)*(x2-x1) + (y2-y1)*(y2-y1));
+            // set model matrix
+            glm::mat4 model = glm::mat4(1.0f);
+            glm::vec3 edgePosition{ (x1+x2)/2.f, (y1+y2)/2.f, 0.f };
+            float theta = atan((y2-y1)/(x2-x1));
+            model = glm::translate(model, edgePosition);
+            model = glm::rotate(model, theta, glm::vec3(0.f,0.f,1.f));
+            model = glm::scale(model, glm::vec3(dist/2.f, 1.f, 1.f));
+            GLuint modelLoc = glGetUniformLocation(shaderProgram, "model");
+            glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+            // draw edge
+            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        }
+
+        // Render Nodes
+        selection = 1;
+        glUniform1i(selectLoc, selection);
         for (uint n = 0; n < graph1->nodes.size(); ++n) {
             // set model matrix
             glm::mat4 model = glm::mat4(1.0f);
@@ -266,9 +302,10 @@ namespace graphics {
             glm::vec3 red{ 1.0f, 0.0f, 0.0f };
             glm::vec3 nodeColor = graph1->nodes[n]->properties->opinion?green:red;
             glUniform3fv(colorLoc, 1, glm::value_ptr(nodeColor));
-            // draw nodes
+            // draw node
             glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         }
+
     }
 
     // Auxillary Function for Loading Shaders

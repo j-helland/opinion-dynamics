@@ -38,13 +38,13 @@ Mouse mouse;
 // 5 - Alternative graph models
 
 // TODO (jllusty)
-// 1 - Edge Textures
+// 1 - Edge Textures [X]
 // 2 - FPS Indicator / Dev Mode
 // 3 - Window Resizing Callback
 // 4 - Better Controls
 // 5 - Graph Editor
 
-#define TEST_SIZE (100)
+#define TEST_SIZE (8)
 //#define TEST_SIMULATION_STEPS (100)
 
 // From voter_model_test.cpp
@@ -62,23 +62,24 @@ int main(void)
     graph1 = graph::make(TEST_SIZE);  // undirected graph
     init_graph_opinions(graph1);  // uniform-random opinions
     // add edges
-    std::bernoulli_distribution dist(0.05);
+    //std::bernoulli_distribution dist(0.05);
     for (uint n = 0; n < graph1->nodes.size(); ++n) {
         for (uint k = 0; k < graph1->nodes.size(); ++k) {
             if (n == k) continue;
-            if (dist(rng::generator)) {
+     //       if (dist(rng::generator)) {
                 graph::add_edge(graph1, n, k);
-            }
+      //      }
         }
     }
+
     // move 'em around
     // theta
     float pi = 4. * atan(1.f);
     float theta = 0.0f;
     for (uint n = 0; n < graph1->nodes.size(); ++n) {
         theta = (float)n * 2.0f * pi / (float)(graph1->nodes.size());
-        float x = 100.f*cos(theta);
-        float y = 100.f*sin(theta);
+        float x = 10.f*cos(theta);
+        float y = 10.f*sin(theta);
         graph1->nodes[n]->properties->x = x;
         graph1->nodes[n]->properties->y = y;
     }
@@ -89,8 +90,11 @@ int main(void)
     graphics::create_shader("../../src/media/shaders/vertex.glsl", "../../src/media/shaders/frag.glsl");
     // Load Vertex Data (for Quad)
     graphics::load_buffers();
-    // Load Texture Data (for Node)
-    graphics::load_texture("../../res/node.png");
+    // Load Texture Data
+    graphics::load_texture("../../res/node.png", &graphics::texture1);       // Node
+    graphics::load_texture("../../res/line.png", &graphics::texture2);       // Edge
+    // Set Texture Data (defines texture samplers in shader program)
+    graphics::set_textures();
     
     /* Initialize OpenAL */
     audio::init();
@@ -111,7 +115,7 @@ int main(void)
         lastFrame = currentFrame;
 
         // update graph every 1 second of realtime
-        if ((uint)(20.f*currentFrame) > currentSecond) {
+        if ((uint)(1.f*currentFrame) > currentSecond) {
             currentSecond++;
             step_dynamics(sample_nodes(graph1));
         }
@@ -151,7 +155,7 @@ int main(void)
 }
 
 void processInput(GLFWwindow *window) {
-    const float speed = 25.f * deltaTime;
+    const float speed = 10.f * deltaTime;
     // pan
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         camera.y += speed;
