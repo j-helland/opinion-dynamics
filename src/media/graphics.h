@@ -333,53 +333,16 @@ namespace graphics {
         glm::mat4 model = glm::mat4(1.0f);
         GLuint modelLoc = glGetUniformLocation(shaderText, "model");
         // Draw "FPS:_"
+        char digits[15];
+        int len = sprintf(digits, "FPS: %6.1f", fps);
         glm::vec3 scaling{ 1.f/10.f, 1.f/10.f, 0.f};
         glm::vec3 margin{ -8.f, 8.f, 0.f };
-        glm::vec2 charCoords = get_character_coords('F');
-            glUniform2fv(coordLoc, 1, glm::value_ptr(charCoords));
-            model = glm::scale(model, scaling);
-            model = glm::translate(model, margin);
-            glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-        charCoords = get_character_coords('P');
-            glUniform2fv(coordLoc, 1, glm::value_ptr(charCoords));
-            model = glm::mat4(1.0f);
-            model = glm::scale(model, scaling);
-            model = glm::translate(model, margin+glm::vec3(1.f, 0.f, 0.f));
-            glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-        charCoords = get_character_coords('S');
-            glUniform2fv(coordLoc, 1, glm::value_ptr(charCoords));
-            model = glm::mat4(1.0f);
-            model = glm::scale(model, scaling);
-            model = glm::translate(model, margin+glm::vec3(2.f, 0.f, 0.f));
-            glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-        charCoords = get_character_coords(':');
-            glUniform2fv(coordLoc, 1, glm::value_ptr(charCoords));
-            model = glm::mat4(1.0f);
-            model = glm::scale(model, scaling);
-            model = glm::translate(model, margin+glm::vec3(3.f, 0.f, 0.f));
-            glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-        charCoords = get_character_coords(' ');
-            glUniform2fv(coordLoc, 1, glm::value_ptr(charCoords));
-            model = glm::mat4(1.0f);
-            model = glm::scale(model, scaling);
-            model = glm::translate(model, margin+glm::vec3(4.f, 0.f, 0.f));
-            glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-        // digits
-        char digits[15];
-        int len = sprintf(digits, "%6.1f", fps);
-        // get hundreds, tens, and ones place
-        for(int n = 0; n < 6; ++n) {
-            charCoords = get_character_coords(digits[n]);
+        for(int n = 0; n < len; ++n) {
+            glm::vec2 charCoords = get_character_coords(digits[n]);
             glUniform2fv(coordLoc, 1, glm::value_ptr(charCoords));
             glm::mat4 model = glm::mat4(1.0f);
             model = glm::scale(model, scaling);
-            model = glm::translate(model, margin+glm::vec3((float)(5+n), 0.f, 0.f));
+            model = glm::translate(model, margin+glm::vec3((float)(n), 0.f, 0.f));
             GLuint modelLoc = glGetUniformLocation(shaderText, "model");
             glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
             glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);

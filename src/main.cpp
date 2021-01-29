@@ -16,6 +16,9 @@
 #include "camera.h"
 Camera camera;
 
+// Window Resize Callback
+void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+
 // Process Input Handle
 void processInput(GLFWwindow* window);
 
@@ -39,18 +42,26 @@ Mouse mouse;
 
 // TODO (jllusty)
 // 1 - Edge Textures [X]
-// 2 - FPS Indicator / Dev Mode
-// 3 - Window Resizing Callback
+// 2 - FPS Indicator / Dev Mode [X]
+// 3 - Window Resizing Callback [X]
 // 4 - Better Controls
 // 5 - Graph Editor
 
 // TODO (someone)
 // 1 - Draw nice graphs by treating edges as springs and letting it reach stability.
+// 2 - Use FreeFont for rendering TrueType Fonts (ideally, JetBrains Mono) in dev mode
+// 3 - FPS Counter is exponentially weighted, so if there are significant changes it slowly
+//     will converge to that average, hence, if the sample is considerably different than the
+//     average (say, 99%?) the frame counter and previous measurement (old_fps) should reset to 0
 
+// Runtime Diagnostics / Devmode
+// NOTE (jllusty): This should turn into a diagnostic struct of info to extern to the renderer.
 bool devmode{ false };
 float fps{ 0.f };
+// GLFWKey Callback for Devmode Toggle
 void devmode_toggle(GLFWwindow* window, int key, int scancode, int action, int mods);
 
+// Graph
 #define TEST_SIZE (8)
 //#define TEST_SIMULATION_STEPS (100)
 
@@ -81,7 +92,6 @@ int main(void)
       //      }
         }
     }
-
     // move 'em around
     // theta
     float pi = 4. * atan(1.f);
@@ -96,6 +106,9 @@ int main(void)
 
     /* Initialize Graphics */
     graphics::init();
+    // Set Callbacks 
+    glfwSetFramebufferSizeCallback(graphics::window, framebuffer_size_callback);
+    glfwSetKeyCallback(graphics::window, devmode_toggle);   // set devmode toggle
     // Create Shader Programs
     //  Graph Shader
     graphics::create_shader("../../src/media/shaders/graph/vertex.glsl", 
@@ -112,7 +125,9 @@ int main(void)
     graphics::load_texture("../../res/line.png", &graphics::textureEdge);               // Edge
     graphics::load_texture("../../res/font/MS_Gothic.png", &graphics::textureFont);     // Font
     // Set Texture Data (defines texture samplers in shader program)
-    graphics::set_textures();
+    // NOTE (jllusty): As the program swaps between shaders and active / bound textures,
+    //                 I don't think this can be done before the render loop (unsure).
+    // graphics::set_textures();
     
     /* Initialize OpenAL */
     audio::init();
@@ -122,7 +137,6 @@ int main(void)
     ALuint* pSource1 = audio::create_source();
 
     /* Loop until the user closes the window */
-    glfwSetKeyCallback(graphics::window, devmode_toggle);   // set devmode toggle
     glfwSetTime(0.0);
     uint currentSecond{ 0 };
     long frames = 0;
@@ -134,10 +148,14 @@ int main(void)
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
-        frames++;
-        float alpha = 1.f/(float)frames;
-        fps = ((((float)frames-1.f))*(oldfps) + 1.f/deltaTime)/(float)frames;
-        oldfps = fps;
+        // measure FPS (Exponential Moving Average w/ alpha = 1 / Num Frames)
+        // NOTE (jllusty): This starts / resets every time devmode is toggled *on*
+        if(devmode) {
+            frames++;
+            float alpha = 1.f/(float)frames;
+            fps = ((((float)frames-1.f))*(oldfps) + 1.f/deltaTime)/(float)frames;
+            oldfps = fps;
+        } else { frames = 0; fps = 0.0f; oldfps = 0.0f; }
 
         // update graph every 1 second of realtime
         if ((uint)(1.f*currentFrame) > currentSecond) {
@@ -202,4 +220,13 @@ void processInput(GLFWwindow *window) {
 void devmode_toggle(GLFWwindow* window, int key, int scancode, int action, int mods) {
     if(key == GLFW_KEY_F1 && action == GLFW_PRESS)
         devmode = !devmode;
+}
+
+// window resizing
+void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
+    // Update Viewport
+    glViewport(0, 0, width, height);
+    // Update Screen Sizes
+    graphics::scr_width = width;
+    graphics::scr_height = height;
 }
