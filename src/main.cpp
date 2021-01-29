@@ -44,6 +44,13 @@ Mouse mouse;
 // 4 - Better Controls
 // 5 - Graph Editor
 
+// TODO (someone)
+// 1 - Draw nice graphs by treating edges as springs and letting it reach stability.
+
+bool devmode{ false };
+float fps{ 0.f };
+void devmode_toggle(GLFWwindow* window, int key, int scancode, int action, int mods);
+
 #define TEST_SIZE (8)
 //#define TEST_SIMULATION_STEPS (100)
 
@@ -58,6 +65,9 @@ graph::Graph* graph1 { nullptr };
 
 int main(void)
 {
+    // Set camera Z
+    camera.z = 36.f;
+
     // Make a Graph
     graph1 = graph::make(TEST_SIZE);  // undirected graph
     init_graph_opinions(graph1);  // uniform-random opinions
@@ -86,13 +96,21 @@ int main(void)
 
     /* Initialize Graphics */
     graphics::init();
-    // Create Shader Program
-    graphics::create_shader("../../src/media/shaders/vertex.glsl", "../../src/media/shaders/frag.glsl");
+    // Create Shader Programs
+    //  Graph Shader
+    graphics::create_shader("../../src/media/shaders/graph/vertex.glsl", 
+                            "../../src/media/shaders/graph/frag.glsl", 
+                            &graphics::shaderGraph);
+    //  Text Shader
+    graphics::create_shader("../../src/media/shaders/font/vertex.glsl", 
+                            "../../src/media/shaders/font/frag.glsl", 
+                            &graphics::shaderText);
     // Load Vertex Data (for Quad)
     graphics::load_buffers();
     // Load Texture Data
-    graphics::load_texture("../../res/node.png", &graphics::texture1);       // Node
-    graphics::load_texture("../../res/line.png", &graphics::texture2);       // Edge
+    graphics::load_texture("../../res/node.png", &graphics::textureNode);               // Node
+    graphics::load_texture("../../res/line.png", &graphics::textureEdge);               // Edge
+    graphics::load_texture("../../res/font/MS_Gothic.png", &graphics::textureFont);     // Font
     // Set Texture Data (defines texture samplers in shader program)
     graphics::set_textures();
     
@@ -104,8 +122,11 @@ int main(void)
     ALuint* pSource1 = audio::create_source();
 
     /* Loop until the user closes the window */
+    glfwSetKeyCallback(graphics::window, devmode_toggle);   // set devmode toggle
     glfwSetTime(0.0);
     uint currentSecond{ 0 };
+    long frames = 0;
+    float oldfps = 0;
     while (!glfwWindowShouldClose(graphics::window))
     {
         /* Timing Calculations */
@@ -113,6 +134,10 @@ int main(void)
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
+        frames++;
+        float alpha = 1.f/(float)frames;
+        fps = ((((float)frames-1.f))*(oldfps) + 1.f/deltaTime)/(float)frames;
+        oldfps = fps;
 
         // update graph every 1 second of realtime
         if ((uint)(1.f*currentFrame) > currentSecond) {
@@ -131,7 +156,7 @@ int main(void)
             audio::play_sound(pSource1, sound1);
         }
 
-        /* Render Nodes */
+        /* Render Graph */
         graphics::render();
 
         /* Swap front and back buffers */
@@ -154,6 +179,7 @@ int main(void)
     return EXIT_SUCCESS;
 }
 
+// continuous input
 void processInput(GLFWwindow *window) {
     const float speed = 10.f * deltaTime;
     // pan
@@ -170,4 +196,10 @@ void processInput(GLFWwindow *window) {
         camera.z -= speed;
     if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
         camera.z += speed;
+}
+
+// devmode toggle
+void devmode_toggle(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    if(key == GLFW_KEY_F1 && action == GLFW_PRESS)
+        devmode = !devmode;
 }

@@ -5,8 +5,8 @@ in vec3 ourColor;
 in vec2 TexCoord;
 
 // texture sampler
-uniform sampler2D texture1;     // Node
-uniform sampler2D texture2;     // Wire
+uniform sampler2D textureNode;     // Node
+uniform sampler2D textureEdge;     // Edge
 
 // texture selection
 uniform int selection;
@@ -17,7 +17,7 @@ uniform vec3 nodeColor;
 void main()
 {
     vec2 uv = TexCoord;
-    vec4 TexColor = texture(texture1, uv);
+    vec4 TexColor = texture(textureNode, uv);
     // Node
     if(selection == 1) {
         // use red of image to color
@@ -26,8 +26,8 @@ void main()
         }
     }
     // Wire
-    else {
-        TexColor = texture(texture2, uv);
+    else if (selection == 2) {
+        TexColor = texture(textureEdge, uv);
     }
     FragColor = TexColor;
 }
