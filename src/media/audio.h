@@ -6,6 +6,9 @@
 // vector
 #include <vector>
 
+// thread
+#include <thread>
+
 // OpenAL Headers
 #include "al.h"
 #include "alc.h"
@@ -18,7 +21,6 @@ namespace audio {
     // OpenAL device and context
     ALCdevice* pALCdevice;
     ALCcontext* pALCcontext;
-
     // sound effect buffers
     std::vector<ALuint> buffers;
 
@@ -26,10 +28,15 @@ namespace audio {
     void init(void);
     // add sound effect to buffers
     ALuint add_sound(const char* filename);
+    // setup sound source
+    ALuint* create_source(void);
+    // destroy sound source
+    void destroy_source(ALuint* pSource);
     // remove sound from buffers (TODO)
+    void set_source(ALuint* pSource, float pitch);
     // void remove_sound(const ALuint& buffer); 
     // play sound
-    void play_sound(const ALuint buffer);
+    void play_sound(ALuint* pSource, const ALuint buffer);
     // destroy OpenAL
     void destroy(void);
 
@@ -56,6 +63,9 @@ namespace audio {
         if (!name || alcGetError(pALCdevice) != AL_NO_ERROR)
             name = alcGetString(pALCdevice, ALC_DEVICE_SPECIFIER);
         printf("(OpenAL) Opened %s\n", name);
+
+        // create source
+        create_source();
     }
 
     // Add sound effect to buffers
@@ -128,55 +138,57 @@ namespace audio {
         return buffer;
     }
 
-    // play sound
-    void play_sound(const ALuint buffer) {
-        ALuint pSource;
+    // create source
+    ALuint* create_source(void) {
+        ALuint* pSource = new ALuint;
         // set up speaker
-        ALuint source;
         float pitch = 1.f;
         float gain = 1.f;
         float position[3] = {0.f, 0.f, 0.f};
         float velocity[3] = {0.f, 0.f, 0.f};
         ALuint pBuffer = 0;
-        alGenSources(1, &pSource);
-        alSourcef(pSource, AL_PITCH, pitch);
-        alSourcef(pSource, AL_GAIN, gain);
-        alSource3f(pSource, AL_POSITION, position[0], position[1], position[2]);
-        alSource3f(pSource, AL_VELOCITY, velocity[0], velocity[1], velocity[2]);
-        alSourcei(pSource, AL_BUFFER, pBuffer);
-        //  set sound source to buffer
-        pBuffer = buffer;
-        alSourcei(pSource, AL_BUFFER, (ALint)buffer);
+        alGenSources(1, pSource);
+        alSourcef(*pSource, AL_PITCH, pitch);
+        alSourcef(*pSource, AL_GAIN, gain);
+        alSource3f(*pSource, AL_POSITION, position[0], position[1], position[2]);
+        alSource3f(*pSource, AL_VELOCITY, velocity[0], velocity[1], velocity[2]);
+        return pSource;
+    }
+    // set source
+    void set_source(ALuint* pSource, float pitch) {
+        alSourcef(*pSource, AL_PITCH, pitch);
+    }
+    // destroy source
+    void destroy_source(ALuint* pSource) {
+        alDeleteSources(1, pSource);
+        delete pSource;
+    }
 
-        //  play sound (blocking)
-        alSourcePlay(pSource);
-        ALint state = AL_PLAYING;
-        while (state == AL_PLAYING && alGetError() == AL_NO_ERROR) {
-            alGetSourcei(pSource, AL_SOURCE_STATE, &state);
-        }
+    // play sound
+    void play_sound(ALuint* pSource, const ALuint buffer) {
+        // get current state (do not interrupt)
+        ALint state;
+        alGetSourcei(*pSource, AL_SOURCE_STATE, &state);
+        if (state == AL_PLAYING) return;
+        // set sound source to buffer
+        alSourcei(*pSource, AL_BUFFER, (ALint)buffer);
 
-        // destroy source
-        alDeleteSources(1, &pSource);
+        //  play sound (spawns its own thread, non-blocking)
+        alSourcePlay(*pSource);
+        //ALint state = AL_PLAYING;
+        //while (state == AL_PLAYING && alGetError() == AL_NO_ERROR) {
+            //alGetSourcei(source, AL_SOURCE_STATE, &state);
+        //}
     }
 
     // Destroy OpenAL Context
     void destroy(void) {
-        //  delete buffers
+        // delete buffers
         alDeleteBuffers(buffers.size(), buffers.data());
-        //  device config
-        if (!alcMakeContextCurrent(nullptr)) {
-            fprintf(stderr, "(OpenAL) Failed to set context to nullptr, exiting.\n");
-            exit(EXIT_FAILURE);
-        }
+        // deinit device config
+        alcMakeContextCurrent(nullptr);
         alcDestroyContext(pALCcontext);
-        if (pALCcontext) {
-            fprintf(stderr, "(OpenAL) Failed to unset during close, exiting.\n");
-            exit(EXIT_FAILURE);
-        }
-        if (!alcCloseDevice(pALCdevice)) {
-            fprintf(stderr, "(OpenAL) Failed to close sound device, exiting.\n");
-            exit(EXIT_FAILURE);
-        }
+        alcCloseDevice(pALCdevice);
     }
 }
 
