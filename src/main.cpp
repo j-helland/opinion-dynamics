@@ -16,6 +16,9 @@
 #include "camera.h"
 Camera camera;
 
+// Window Resize Callback
+void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+
 // Process Input Handle
 void processInput(GLFWwindow* window);
 
@@ -30,33 +33,45 @@ struct Mouse {
 };
 Mouse mouse;
 
-// Example Nodes Attributes
-// Node Positions
-glm::vec3 nodePositions[] = {
-    glm::vec3(0.0f, 0.0f, 0.0f),
-    glm::vec3(1.0f, 0.0f, 0.0f)
-};
-// Node Colors
-glm::vec3 nodeColors[] = {
-    glm::vec3(1.0f, 0.0f, 0.0f),
-    glm::vec3(0.0f, 1.0f, 1.0f)
-};
+// KNOWN BUGS
+// (backend) - When a node is disconnected from the graph, an infinite loop looking for neighbors occurs.
+//      (FIX) - Since the graph now has an edge list, just sample from that.
+//              This dramatically simplifies the sampling code and reduces the number of rng calls.
+//              However, the downside is that the edge list is currently an unordered_set, which means finding the sample index is O(n).
+// (backend) - When the graph has no edges, voter model shits itself.
+//      (FIX) sample_nodes will now return pair(nullptr, nullptr) and step_dyanmics will do nothing if either passed Node* is nullptr. 
 
 // TODO (jæn)
-// 1 - Implement another model of your discretion
-// 2 - Think about allocation strategies for edges
-// 3 - Load/Save Graphs (Serialization)
-// 4 - Random graph generation
-// 5 - Alternative graph models
+// (backend) - Implement an edge list with O(1) access so that the edge sampler can be faster.
+// (models) - Implement another model of your discretion
+// (backend) - Think about allocation strategies for edges
+// (backend) - Load/Save Graphs (Serialization)
+// (models) - Random graph generation
+// (models) - Alternative graph models
 
 // TODO (jllusty)
-// 1 - Edge Textures
-// 2 - FPS Indicator / Dev Mode
-// 3 - Window Resizing Callback
+// 1 - Edge Textures [X]
+// 2 - FPS Indicator / Dev Mode [X]
+// 3 - Window Resizing Callback [X]
 // 4 - Better Controls
 // 5 - Graph Editor
 
-#define TEST_SIZE (64)
+// TODO (someone)
+// 1 - Draw nice graphs by treating edges as springs and letting it reach stability.
+// 2 - Use FreeFont for rendering TrueType Fonts (ideally, JetBrains Mono) in dev mode
+// 3 - FPS Counter is exponentially weighted, so if there are significant changes it slowly
+//     will converge to that average, hence, if the sample is considerably different than the
+//     average (say, 99%?) the frame counter and previous measurement (old_fps) should reset to 0
+
+// Runtime Diagnostics / Devmode
+// NOTE (jllusty): This should turn into a diagnostic struct of info to extern to the renderer.
+bool devmode{ false };
+float fps{ 0.f };
+// GLFWKey Callback for Devmode Toggle
+void devmode_toggle(GLFWwindow* window, int key, int scancode, int action, int mods);
+
+// Graph
+#define TEST_SIZE (8)
 //#define TEST_SIMULATION_STEPS (100)
 
 // From voter_model_test.cpp
@@ -70,17 +85,20 @@ graph::Graph* graph1 { nullptr };
 
 int main(void)
 {
+    // Set camera Z
+    camera.z = 36.f;
+
     // Make a Graph
     graph1 = graph::make(TEST_SIZE);  // undirected graph
     init_graph_opinions(graph1);  // uniform-random opinions
     // add edges
-    // std::bernoulli_distribution dist(0.1);
+    std::bernoulli_distribution dist(0.05f);
     for (uint n = 0; n < graph1->nodes.size(); ++n) {
         for (uint k = 0; k < graph1->nodes.size(); ++k) {
             if (n == k) continue;
-            // if (dist(rng::generator)) {
+                if (dist(rng::generator)) {
                 graph::add_edge(graph1, n, k);
-            // }
+           }
         }
     }
     // move 'em around
@@ -90,20 +108,36 @@ int main(void)
     float radius = 3.f;
     for (uint n = 0; n < graph1->nodes.size(); ++n) {
         theta = (float)n * 2.0f * pi / (float)(graph1->nodes.size());
-        float x = radius*cos(theta);
-        float y = radius*sin(theta);
+        float x = 10.f*cos(theta);
+        float y = 10.f*sin(theta);
         graph1->nodes[n]->properties->x = x;
         graph1->nodes[n]->properties->y = y;
     }
 
     /* Initialize Graphics */
     graphics::init();
-    // Create Shader Program
-    graphics::create_shader("../../src/media/shaders/vertex.glsl", "../../src/media/shaders/frag.glsl");
+    // Set Callbacks 
+    glfwSetFramebufferSizeCallback(graphics::window, framebuffer_size_callback);
+    glfwSetKeyCallback(graphics::window, devmode_toggle);   // set devmode toggle
+    // Create Shader Programs
+    //  Graph Shader
+    graphics::create_shader("../../src/media/shaders/graph/vertex.glsl", 
+                            "../../src/media/shaders/graph/frag.glsl", 
+                            &graphics::shaderGraph);
+    //  Text Shader
+    graphics::create_shader("../../src/media/shaders/font/vertex.glsl", 
+                            "../../src/media/shaders/font/frag.glsl", 
+                            &graphics::shaderText);
     // Load Vertex Data (for Quad)
     graphics::load_buffers();
-    // Load Texture Data (for Node)
-    graphics::load_texture("../../res/node.png");
+    // Load Texture Data
+    graphics::load_texture("../../res/node.png", &graphics::textureNode);               // Node
+    graphics::load_texture("../../res/line.png", &graphics::textureEdge);               // Edge
+    graphics::load_texture("../../res/font/MS_Gothic.png", &graphics::textureFont);     // Font
+    // Set Texture Data (defines texture samplers in shader program)
+    // NOTE (jllusty): As the program swaps between shaders and active / bound textures,
+    //                 I don't think this can be done before the render loop (unsure).
+    // graphics::set_textures();
     
     /* Initialize OpenAL */
     audio::init();
@@ -115,6 +149,8 @@ int main(void)
     /* Loop until the user closes the window */
     glfwSetTime(0.0);
     uint currentSecond{ 0 };
+    long frames = 0;
+    float oldfps = 0;
     while (!glfwWindowShouldClose(graphics::window))
     {
         /* Timing Calculations */
@@ -122,9 +158,17 @@ int main(void)
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
+        // measure FPS (Exponential Moving Average w/ alpha = 1 / Num Frames)
+        // NOTE (jllusty): This starts / resets every time devmode is toggled *on*
+        if(devmode) {
+            frames++;
+            float alpha = 1.f/(float)frames;
+            fps = ((((float)frames-1.f))*(oldfps) + 1.f/deltaTime)/(float)frames;
+            oldfps = fps;
+        } else { frames = 0; fps = 0.0f; oldfps = 0.0f; }
 
-        // update graph every 1 second of realtime
-        if ((uint)(20.f*currentFrame) > currentSecond) {
+        // update graph every 1/5 second of realtime
+        if ((uint)(2.5f*currentFrame) > currentSecond) {
             currentSecond++;
             step_dynamics(sample_nodes(graph1));
         }
@@ -140,7 +184,7 @@ int main(void)
             audio::play_sound(pSource1, sound1);
         }
 
-        /* Render Nodes */
+        /* Render Graph */
         graphics::render();
 
         /* Swap front and back buffers */
@@ -163,8 +207,9 @@ int main(void)
     return EXIT_SUCCESS;
 }
 
+// continuous input
 void processInput(GLFWwindow *window) {
-    const float speed = 5.f * deltaTime;
+    const float speed = 10.f * deltaTime;
     // pan
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         camera.y += speed;
@@ -179,4 +224,19 @@ void processInput(GLFWwindow *window) {
         camera.z -= speed;
     if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
         camera.z += speed;
+}
+
+// devmode toggle
+void devmode_toggle(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    if(key == GLFW_KEY_F1 && action == GLFW_PRESS)
+        devmode = !devmode;
+}
+
+// window resizing
+void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
+    // Update Viewport
+    glViewport(0, 0, width, height);
+    // Update Screen Sizes
+    graphics::scr_width = width;
+    graphics::scr_height = height;
 }
