@@ -3,7 +3,8 @@
 
 #include "../types.h"
 #include "../data_structures/graph.h"
-#include "../models/voter_model.h"
+#include "../dynamics/models/voter_model.h"
+#include "../dynamics/utils.h"
 
 #define TEST_SIZE (64)
 #define TEST_SIMULATION_STEPS (100)
@@ -29,11 +30,11 @@ int main(void) {
 
     // make sure that a single step works properly
     printf("\nChecking single step of voter model...\n");
-    auto pair = sample_nodes(graph);
+    auto pair = sample_edge(graph);
     printf("\tOpinion target: %i | Opinion neighbor: %i\n", 
         pair.first->properties->opinion,
         pair.second->properties->opinion);
-    step_dynamics(pair);
+    step_voter_dynamics(graph, pair);
     printf("\tOpinion target: %i | Opinion neighbor: %i\n\n", 
         pair.first->properties->opinion,
         pair.second->properties->opinion);
@@ -42,7 +43,7 @@ int main(void) {
     // run simulation to consensus
     printf("Running simulation for %i steps...\n", TEST_SIMULATION_STEPS);
     for (uint step = 0; step < TEST_SIMULATION_STEPS; ++step) {
-        step_dynamics(sample_nodes(graph));
+        step_voter_dynamics(graph, sample_edge(graph));
 
         if (is_consensus_reached(graph)) {
             printf("Consensus reached in %i steps!\n", step + 1);

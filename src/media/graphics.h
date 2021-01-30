@@ -28,7 +28,7 @@ extern float fps;
 
 #include "types.h"
 #include "data_structures/graph.h"
-#include "models/voter_model.h"
+// #include "models/voter_model.h"
 extern graph::Graph* graph1;
 
 namespace graphics {

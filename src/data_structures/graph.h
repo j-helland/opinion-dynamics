@@ -22,6 +22,7 @@ namespace graph {
     typedef struct node Node;
     typedef struct properties Properties;
     typedef std::pair<uint, uint> edge_t;
+    typedef std::pair<Node*, Node*> edge_ptr_t;
 
     //// forward declarations
     // structs

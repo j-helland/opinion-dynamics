@@ -71,13 +71,15 @@ float fps{ 0.f };
 void devmode_toggle(GLFWwindow* window, int key, int scancode, int action, int mods);
 
 // Graph
-#define TEST_SIZE (8)
+#define TEST_SIZE (32)
 //#define TEST_SIMULATION_STEPS (100)
 
 // From voter_model_test.cpp
 #include "types.h"
 #include "data_structures/graph.h"
-#include "models/voter_model.h"
+// #include "models/voter_model.h"
+#include "dynamics/models/sznajd.h"
+#include "dynamics/utils.h"
 #include "random.h"
 
 // graph
@@ -92,13 +94,13 @@ int main(void)
     graph1 = graph::make(TEST_SIZE);  // undirected graph
     init_graph_opinions(graph1);  // uniform-random opinions
     // add edges
-    std::bernoulli_distribution dist(0.05f);
+    std::bernoulli_distribution dist(0.1f);
     for (uint n = 0; n < graph1->nodes.size(); ++n) {
         for (uint k = 0; k < graph1->nodes.size(); ++k) {
             if (n == k) continue;
-                if (dist(rng::generator)) {
+            if (dist(rng::generator)) {
                 graph::add_edge(graph1, n, k);
-           }
+            }
         }
     }
     // move 'em around
@@ -170,7 +172,7 @@ int main(void)
         // update graph every 1/5 second of realtime
         if ((uint)(2.5f*currentFrame) > currentSecond) {
             currentSecond++;
-            step_dynamics(sample_nodes(graph1));
+            step_sznajd_dynamics(graph1, sample_edge(graph1));
         }
 
         /* Process Input */
