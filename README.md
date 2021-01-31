@@ -23,6 +23,8 @@ To build this project, you'll need to install the OpenAL SDK: https://www.openal
 - (backend) Load/Save Graphs (Serialization)
 - (models) Random graph generation
 - (models) Alternative graph models
+- (backend) The step_dynamics functions need to return diffs that the renderer can apply.
+- (backend) Nodes need ids and there needs to be an interface to request info associated w/ an id.
 
 ## John
 
