@@ -52,6 +52,8 @@ void devmode_toggle(GLFWwindow* window, int key, int scancode, int action, int m
 #include "dynamics/utils.h"
 #include "random.h"
 
+#include "nlohmann/json.hpp"
+
 // graph
 graph::Graph* graph1 { nullptr };
 // updating
