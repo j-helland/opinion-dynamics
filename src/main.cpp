@@ -44,6 +44,7 @@ Mouse mouse;
 // TODO (jæn)
 // (backend) - Implement an edge list with O(1) access so that the edge sampler can be faster.
 // (models) - Implement another model of your discretion
+//      - sznajd model variation
 // (backend) - Think about allocation strategies for edges
 // (backend) - Load/Save Graphs (Serialization)
 // (models) - Random graph generation

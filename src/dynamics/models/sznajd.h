@@ -21,6 +21,7 @@ step_sznajd_dynamics(graph::Graph* graph, graph::edge_ptr_t& edge) {
     if (opinion1 == opinion2) {
         // All neighbors take this opinion.
         for (uint n = 0; n < edge.first->num_adjacent; ++n) {
+            // TODO: this way of getting the neighbor is fucking stupid
             graph->nodes[ edge.first->adjacent[n] ]->properties->opinion = opinion1;
         }
         for (uint n = 0; n < edge.second->num_adjacent; ++n) {
