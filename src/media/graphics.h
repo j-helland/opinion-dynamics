@@ -22,6 +22,9 @@ extern Camera camera;
 extern bool devmode;
 extern float fps;
 
+// simulation status
+extern bool simulating;
+
 // Node Positions and Colors
 //extern glm::vec3 nodePositions[];
 //extern glm::vec3 nodeColors[];
@@ -30,6 +33,13 @@ extern float fps;
 #include "data_structures/graph.h"
 #include "models/voter_model.h"
 extern graph::Graph* graph1;
+
+// selected nodes
+extern bool nodeSelected;
+extern uint selectedNode;
+
+// mouse coordinates in world coordinates
+extern glm::vec4 cPos;
 
 namespace graphics {
     // GLFW window
@@ -264,9 +274,11 @@ namespace graphics {
         // transformation matrices
         glm::mat4 view  = glm::mat4(1.0f);
         glm::mat4 proj  = glm::mat4(1.0f);
-        view = glm::translate(view, -glm::vec3(camera.x, camera.y, camera.z));
-        //proj = glm::ortho(0.0f, (GLfloat)graphics::scr_width, 0.0f, (GLfloat)graphics::scr_height, 0.1f, 100.0f);
-        proj = glm::perspective(glm::radians(45.0f), (float)scr_width/(float)scr_height, 0.1f, 100.f);
+        view = glm::lookAt(camera.pos, camera.pos + camera.front, camera.up);
+        float aspect = (float)scr_width/(float)scr_height;
+        float zoom = camera.pos.z;
+        proj = glm::ortho(-zoom*aspect, zoom*aspect, -zoom, zoom, 0.1f, 100.0f);
+        //proj = glm::perspective(glm::radians(45.0f), (float)scr_width/(float)scr_height, 0.1f, 100.f);
         // get their uniform locations
         GLuint viewLoc = glGetUniformLocation(shaderGraph, "view");
         GLuint projLoc = glGetUniformLocation(shaderGraph, "proj");
@@ -274,7 +286,7 @@ namespace graphics {
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(proj));
 
-        GLuint selectLoc = glGetUniformLocation(shaderGraph, "selection");
+        GLuint selectLoc = glGetUniformLocation(shaderGraph, "texSelection");
 
         // bind vertices of unit quad (+/-1,+/-1)
         glBindVertexArray(VAO);
@@ -319,6 +331,19 @@ namespace graphics {
             glm::vec3 red{ 1.0f, 0.0f, 0.0f };
             glm::vec3 nodeColor = (graph1->nodes[n]->properties->opinion)?green:red;
             glUniform3fv(colorLoc, 1, glm::value_ptr(nodeColor));
+            // highlight if selected node
+            GLuint selLoc  = glGetUniformLocation(shaderGraph, "selected");
+            int sel{ 0 };
+            if (nodeSelected && selectedNode == n) {
+                sel = 1;
+                GLuint highlightLoc = glGetUniformLocation(shaderGraph, "highlight");
+                glm::vec3 highlight{ 1.0f, 1.0f, 1.0f };
+                glUniform1i(selLoc, sel);
+                glUniform3fv(highlightLoc, 1, glm::value_ptr(highlight));
+            } else {
+                sel = 0;
+                glUniform1i(selLoc, sel);
+            }
             // draw node
             glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         }
@@ -347,6 +372,21 @@ namespace graphics {
             glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
             glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         }
+        // Draw "RUN:_"
+        margin = glm::vec3(-8.f, 6.f, 0.f);
+        char run_status[16];
+        if(simulating) len = sprintf(run_status, "RUN: YES");
+        else len = sprintf(run_status, "RUN: NO");
+        for(int n = 0; n < len; ++n) {
+            glm::vec2 charCoords = get_character_coords(run_status[n]);
+            glUniform2fv(coordLoc, 1, glm::value_ptr(charCoords));
+            glm::mat4 model = glm::mat4(1.0f);
+            model = glm::scale(model, scaling);
+            model = glm::translate(model, margin+glm::vec3((float)(n), 0.f, 0.f));
+            GLuint modelLoc = glGetUniformLocation(shaderText, "model");
+            glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        }
     }
 
     // Auxillary Function for Getting Coordinates of a Character (Text Bitmap)
@@ -367,6 +407,14 @@ namespace graphics {
         if(c == ':') return glm::vec2(2.f, 4.f);
         if(c == ' ') return glm::vec2(0.f, 7.f);
         if(c == '.') return glm::vec2(6.f, 6.f);
+        if(c == 'R') return glm::vec2(2.f, 1.f);
+        if(c == 'U') return glm::vec2(5.f, 1.f);
+        if(c == 'N') return glm::vec2(6.f, 2.f);
+        if(c == 'Y') return glm::vec2(1.f, 0.f);
+        if(c == 'E') return glm::vec2(5.f, 3.f);
+        if(c == 'S') return glm::vec2(3.f, 1.f);
+        if(c == 'N') return glm::vec2(6.f, 2.f);
+        if(c == 'O') return glm::vec2(7.f, 2.f);
         return glm::vec2(0.f, 0.f);
     }
 
