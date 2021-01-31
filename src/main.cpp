@@ -33,40 +33,6 @@ struct Mouse {
 };
 Mouse mouse;
 
-// KNOWN BUGS
-// (backend) - When a node is disconnected from the graph, an infinite loop looking for neighbors occurs.
-//      (FIX) - Since the graph now has an edge list, just sample from that.
-//              This dramatically simplifies the sampling code and reduces the number of rng calls.
-//              However, the downside is that the edge list is currently an unordered_set, which means finding the sample index is O(n).
-// (backend) - When the graph has no edges, voter model shits itself.
-//      (FIX) sample_nodes will now return pair(nullptr, nullptr) and step_dyanmics will do nothing if either passed Node* is nullptr. 
-// (diagnostic) - When pausing with `p`, FPS counter breaks.
-
-// TODO (jæn)
-// (backend) - Implement an edge list with O(1) access so that the edge sampler can be faster.
-// (models) - Implement another model of your discretion
-//      - sznajd model variation
-// (backend) - Think about allocation strategies for edges
-// (backend) - Load/Save Graphs (Serialization)
-// (models) - Random graph generation
-// (models) - Alternative graph models
-
-// TODO (jllusty)
-// 1 - Edge Textures [X]
-// 2 - FPS Indicator / Dev Mode [X]
-// 3 - Window Resizing Callback [X]
-// 4 - Better Controls [X]
-// 5 - Graph Editor
-
-// TODO (someone)
-// 1 - Draw nice graphs by treating edges as springs and letting it reach stability.
-// 2 - Use FreeFont for rendering TrueType Fonts (ideally, JetBrains Mono) in dev mode
-// 3 - FPS Counter is exponentially weighted, so if there are significant changes it slowly
-//     will converge to that average, hence, if the sample is considerably different than the
-//     average (say, 99%?) the frame counter and previous measurement (old_fps) should reset to 0.
-//     Hard reset on any graphics settings changing (window resizing, etc).
-// 4 - Before first merge with main, need to change included library to git submodules.
-
 // Runtime Diagnostics / Devmode
 // NOTE (jllusty): This should turn into a diagnostic struct of info to extern to the renderer.
 bool devmode{ false };
