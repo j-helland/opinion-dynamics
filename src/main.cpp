@@ -40,6 +40,7 @@ Mouse mouse;
 //              However, the downside is that the edge list is currently an unordered_set, which means finding the sample index is O(n).
 // (backend) - When the graph has no edges, voter model shits itself.
 //      (FIX) sample_nodes will now return pair(nullptr, nullptr) and step_dyanmics will do nothing if either passed Node* is nullptr. 
+// (diagnostic) - When pausing with `p`, FPS counter breaks.
 
 // TODO (jæn)
 // (backend) - Implement an edge list with O(1) access so that the edge sampler can be faster.
@@ -54,7 +55,7 @@ Mouse mouse;
 // 1 - Edge Textures [X]
 // 2 - FPS Indicator / Dev Mode [X]
 // 3 - Window Resizing Callback [X]
-// 4 - Better Controls
+// 4 - Better Controls [X]
 // 5 - Graph Editor
 
 // TODO (someone)
@@ -62,13 +63,15 @@ Mouse mouse;
 // 2 - Use FreeFont for rendering TrueType Fonts (ideally, JetBrains Mono) in dev mode
 // 3 - FPS Counter is exponentially weighted, so if there are significant changes it slowly
 //     will converge to that average, hence, if the sample is considerably different than the
-//     average (say, 99%?) the frame counter and previous measurement (old_fps) should reset to 0
+//     average (say, 99%?) the frame counter and previous measurement (old_fps) should reset to 0.
+//     Hard reset on any graphics settings changing (window resizing, etc).
+// 4 - Before first merge with main, need to change included library to git submodules.
 
 // Runtime Diagnostics / Devmode
 // NOTE (jllusty): This should turn into a diagnostic struct of info to extern to the renderer.
 bool devmode{ false };
 float fps{ 0.f };
-// GLFWKey Callback for Devmode Toggle
+// GLFWKey Callback for Devmode Toggle (and other toggles)
 void devmode_toggle(GLFWwindow* window, int key, int scancode, int action, int mods);
 
 // Graph
@@ -85,12 +88,17 @@ void devmode_toggle(GLFWwindow* window, int key, int scancode, int action, int m
 
 // graph
 graph::Graph* graph1 { nullptr };
+// updating
+bool simulating{ true };
+// selected node
+bool nodeSelected{ false };
+uint selectedNode{ 0 };
+// current position of mouse in world coords
+glm::vec4 cPos;
 
 int main(void)
 {
-    // Set camera Z
-    camera.z = 36.f;
-
+    cPos = glm::vec4(0.f, 0.f, 0.f, 0.f);
     // Make a Graph
     graph1 = graph::make(TEST_SIZE);  // undirected graph
     init_graph_opinions(graph1);  // uniform-random opinions
@@ -173,19 +181,17 @@ int main(void)
         // update graph every 1/5 second of realtime
         if ((uint)(2.5f*currentFrame) > currentSecond) {
             currentSecond++;
+            if (! simulating) continue;
             step_sznajd_dynamics(graph1, sample_edge(graph1));
         }
 
         /* Process Input */
         processInput(graphics::window);
-        // get cursor position
-        glfwGetCursorPos(graphics::window, &mouse.x, &mouse.y);
-        // use it to set the pitch (lel)
-        audio::set_source(pSource1, (float)mouse.x/640.f);
+        //audio::set_source(pSource1, (float)mouse.x/640.f);
         // if space is pressed, play sound
-        if (glfwGetKey(graphics::window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-            audio::play_sound(pSource1, sound1);
-        }
+        //if (glfwGetKey(graphics::window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+        //    audio::play_sound(pSource1, sound1);
+       //}
 
         /* Render Graph */
         graphics::render();
@@ -212,27 +218,95 @@ int main(void)
 
 // continuous input
 void processInput(GLFWwindow *window) {
-    const float speed = 10.f * deltaTime;
+    const float speed = 20.f * deltaTime;
     // pan
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        camera.y += speed;
+        camera.pos.y += speed;
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        camera.x -= speed;
+        camera.pos.x -= speed;
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        camera.y -= speed;
+        camera.pos.y -= speed;
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        camera.x += speed;
+        camera.pos.x += speed;
     // zoom
     if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
-        camera.z -= speed;
+        camera.pos.z -= speed;
     if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
-        camera.z += speed;
+        camera.pos.z += speed;
+
+    // check if we touchy-touched a node with a mouse clicky-click
+    // update cursor position anyway
+    glfwGetCursorPos(graphics::window, &mouse.x, &mouse.y);
+    // check if we clicked the the left mouse button
+    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+        // are we already touchy-touching a node?
+        if (!nodeSelected) {
+            // if not, are we touchy-touching one now?
+            bool selected{ false };
+            // make view and projection matrices
+            glm::mat4 view  = glm::mat4(1.0f);
+            glm::mat4 proj  = glm::mat4(1.0f);
+            view = glm::lookAt(camera.pos, camera.pos + camera.front, camera.up);
+            float aspect = (float)graphics::scr_width/(float)graphics::scr_height;
+            float zoom = camera.pos.z;
+            proj = glm::ortho(-zoom*aspect, zoom*aspect, -zoom, zoom, 0.1f, 100.0f);
+            for (uint n = 0; n < graph1->nodes.size(); ++n) {
+                // get position of node in view coords
+                glm::mat4 model = glm::mat4(1.0f);
+                glm::vec3 nodePosition{ graph1->nodes[n]->properties->x, graph1->nodes[n]->properties->y, 0.0f };
+                model = glm::translate(model, nodePosition);
+                // origin
+                glm::vec4 oPos = proj * view * model * glm::vec4(0.0f, 0.0f, 0.0f, 1.0);
+                    oPos = oPos / oPos.w;
+                // edge of texture
+                glm::vec4 ePos = proj * view * model * glm::vec4(1.0f, 0.0f, 0.0f, 1.0);
+                    ePos = ePos / ePos.w;
+                // radius
+                float r = glm::distance(oPos, ePos);
+                // mouse position in normalized screen coordinates
+                glm::vec2 mPos{ 2.f*mouse.x/graphics::scr_width-1.f, -2.f*mouse.y/graphics::scr_height+1.f };
+                // get distance from node origin to mouse position
+                float dMouse = glm::distance(glm::vec2(oPos.x, oPos.y), mPos);
+                if (dMouse < r) { selected = true; selectedNode = n; nodeSelected = true; break; }
+            }
+            if (!selected) { nodeSelected = false; }
+        }
+        // if we touchy-touched a node and the user is still holding down the mouse,
+        // drag that little 'en along
+        else {
+            // mouse position in normalized "screen" coordinates
+            glm::vec4 mPos{ 2.f*mouse.x/graphics::scr_width-1.f, -2.f*mouse.y/graphics::scr_height+1.f, 0.0f, 1.0f };
+            // get camera transform, use it to invert the mouse position into world coordinates
+            glm::mat4 view  = glm::mat4(1.0f);
+            glm::mat4 proj  = glm::mat4(1.0f);
+            view = glm::lookAt(camera.pos, camera.pos + camera.front, camera.up);
+            float aspect = (float)graphics::scr_width/(float)graphics::scr_height;
+            float zoom = camera.pos.z;
+            proj = glm::ortho(-zoom*aspect, zoom*aspect, -zoom, zoom, 0.1f, 100.0f);
+            glm::mat4 model = glm::mat4(1.0f);
+            //proj = glm::perspective(glm::radians(45.0f), (float)graphics::scr_width/(float)graphics::scr_height, 0.1f, 100.f);
+            glm::vec3 nodePosition{ graph1->nodes[selectedNode]->properties->x, graph1->nodes[selectedNode]->properties->y, 0.0f };
+            model = glm::translate(model, nodePosition);
+            glm::mat4 invCamera = glm::inverse(proj * view);
+            cPos = invCamera * mPos;
+                cPos = cPos / cPos.w;
+            auto newNode = graph1->nodes[selectedNode];
+            newNode->properties->x = cPos.x;
+            newNode->properties->y = cPos.y;
+        }
+    }
+    // we aren't touchy-touching anything
+    else { nodeSelected = false; }
 }
 
-// devmode toggle
+// devmode toggle, also other toggles
 void devmode_toggle(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    // enable devmode output
     if(key == GLFW_KEY_F1 && action == GLFW_PRESS)
         devmode = !devmode;
+    // pause / play simulation
+    if(key == GLFW_KEY_P && action == GLFW_PRESS)
+        simulating = !simulating;
 }
 
 // window resizing
