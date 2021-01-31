@@ -15,7 +15,7 @@ set( GLFW_BUILD_DOCS OFF CACHE BOOL  "GLFW lib only" )
 set( GLFW_INSTALL OFF CACHE BOOL  "GLFW lib only" )
 add_subdirectory( glfw )
 #  GLM
-include_directories( glm-0.9.9.8 )
+include_directories( glm )
 
 # include FindOpenAL, defines OPENAL_INCLUDE_DIR and OPENAL_LIBRARY
 # NOTE: uses ENV $OPENALDIR for HINT
