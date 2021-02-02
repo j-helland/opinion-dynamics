@@ -31,12 +31,13 @@ extern bool simulating;
 
 #include "types.h"
 #include "data_structures/graph.h"
+#include "core/entity_manager.h"
 // #include "models/voter_model.h"
 extern graph::Graph* graph1;
 
 // selected nodes
 extern bool nodeSelected;
-extern uint selectedNode;
+extern core::id_t selectedNodeID;
 
 // mouse coordinates in world coordinates
 extern glm::vec4 cPos;
@@ -294,13 +295,15 @@ namespace graphics {
         // Render wires
         GLint selection = 2;
         glUniform1i(selectLoc, selection);
-        for(const auto& elem: graph1->edges) {
-            auto node1 = graph1->nodes[elem.first];
-            auto node2 = graph1->nodes[elem.second];
-            float x1 = node1->properties->x;
-            float y1 = node1->properties->y;
-            float x2 = node2->properties->x;
-            float y2 = node2->properties->y;
+        for(const auto& [id1, id2]: graph1->edges) {
+            auto node1 = core::get_entity<graph::Node>(id1);
+            auto node2 = core::get_entity<graph::Node>(id2);
+            // auto node1 = graph1->nodes[elem.first];
+            // auto node2 = graph1->nodes[elem.second];
+            float x1 = node1->x;
+            float y1 = node1->y;
+            float x2 = node2->x;
+            float y2 = node2->y;
             float dist = sqrt((x2-x1)*(x2-x1) + (y2-y1)*(y2-y1));
             // set model matrix
             glm::mat4 model = glm::mat4(1.0f);
@@ -318,10 +321,12 @@ namespace graphics {
         // Render Nodes
         selection = 1;
         glUniform1i(selectLoc, selection);
-        for (uint n = 0; n < graph1->nodes.size(); ++n) {
+        // for (uint n = 0; n < graph1->nodes.size(); ++n) {
+        for (const auto& [id, _] : graph1->nodes) {
+            auto node = core::get_entity<graph::Node>(id);
             // set model matrix
             glm::mat4 model = glm::mat4(1.0f);
-            glm::vec3 nodePosition{ graph1->nodes[n]->properties->x, graph1->nodes[n]->properties->y, 0.0f };
+            glm::vec3 nodePosition{ node->x, node->y, 0.0f };
             model = glm::translate(model, nodePosition);
             GLuint modelLoc = glGetUniformLocation(shaderGraph, "model");
             glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
@@ -329,12 +334,12 @@ namespace graphics {
             GLuint colorLoc = glGetUniformLocation(shaderGraph, "nodeColor");
             glm::vec3 green{ 0.0f, 1.0f, 0.0f };
             glm::vec3 red{ 1.0f, 0.0f, 0.0f };
-            glm::vec3 nodeColor = (graph1->nodes[n]->properties->opinion)?green:red;
+            glm::vec3 nodeColor = (node->opinion) ? green : red;
             glUniform3fv(colorLoc, 1, glm::value_ptr(nodeColor));
             // highlight if selected node
             GLuint selLoc  = glGetUniformLocation(shaderGraph, "selected");
             int sel{ 0 };
-            if (nodeSelected && selectedNode == n) {
+            if (nodeSelected && selectedNodeID == id) {
                 sel = 1;
                 GLuint highlightLoc = glGetUniformLocation(shaderGraph, "highlight");
                 glm::vec3 highlight{ 1.0f, 1.0f, 1.0f };

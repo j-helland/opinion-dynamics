@@ -16,12 +16,16 @@ To build this project, you'll need to install the OpenAL SDK: https://www.openal
 (diagnostic) - When pausing with `p`, FPS counter breaks.
 
 ## Jon
+### Active
+- (backend) Load/Save Graphs (Serialization)
+- (models) Random graph generation
+    - Cech filtration for edges
+
+### Backlog
 - (backend) Implement an edge list with O(1) access so that the edge sampler can be faster.
 - (models) Implement another model of your discretion
     - sznajd model variation
 - (backend) Think about allocation strategies for edges
-- (backend) Load/Save Graphs (Serialization)
-- (models) Random graph generation
 - (models) Alternative graph models
 - (backend) The step_dynamics functions need to return diffs that the renderer can apply.
 - (backend) Nodes need ids and there needs to be an interface to request info associated w/ an id.

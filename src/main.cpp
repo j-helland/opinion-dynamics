@@ -47,6 +47,7 @@ void devmode_toggle(GLFWwindow* window, int key, int scancode, int action, int m
 // From voter_model_test.cpp
 #include "types.h"
 #include "data_structures/graph.h"
+#include "core/entity_manager.h"
 // #include "models/voter_model.h"
 #include "dynamics/models/sznajd.h"
 #include "dynamics/utils.h"
@@ -60,7 +61,7 @@ graph::Graph* graph1 { nullptr };
 bool simulating{ true };
 // selected node
 bool nodeSelected{ false };
-uint selectedNode{ 0 };
+core::id_t selectedNodeID{ 0 };
 // current position of mouse in world coords
 glm::vec4 cPos;
 
@@ -68,15 +69,16 @@ int main(void)
 {
     cPos = glm::vec4(0.f, 0.f, 0.f, 0.f);
     // Make a Graph
-    graph1 = graph::make(TEST_SIZE);  // undirected graph
+    graph1 = new graph::Graph;
+    graph::make(graph1, TEST_SIZE);  // undirected graph
     init_graph_opinions(graph1);  // uniform-random opinions
     // add edges
     std::bernoulli_distribution dist(0.1f);
-    for (uint n = 0; n < graph1->nodes.size(); ++n) {
-        for (uint k = 0; k < graph1->nodes.size(); ++k) {
-            if (n == k) continue;
+    for (const auto& [id1, _] : graph1->nodes) {
+        for (const auto& [id2, _] : graph1->nodes) {
+            if (id1 == id2) continue;
             if (dist(rng::generator)) {
-                graph::add_edge(graph1, n, k);
+                graph::add_edge(graph1, id1, id2);
             }
         }
     }
@@ -85,12 +87,16 @@ int main(void)
     float pi = 4. * atan(1.f);
     float theta = 0.0f;
     float radius = 3.f;
-    for (uint n = 0; n < graph1->nodes.size(); ++n) {
+    uint n = 0;
+    for (const auto& [id, _] : graph1->nodes) {
+        graph::Node* node = core::get_entity<graph::Node>(id);
         theta = (float)n * 2.0f * pi / (float)(graph1->nodes.size());
         float x = 10.f*cos(theta);
         float y = 10.f*sin(theta);
-        graph1->nodes[n]->properties->x = x;
-        graph1->nodes[n]->properties->y = y;
+        node->x = x;
+        node->y = y;
+
+        n++;
     }
 
     /* Initialize Graphics */
@@ -135,7 +141,7 @@ int main(void)
         /* Timing Calculations */
         // per-frame timing
         float currentFrame = glfwGetTime();
-        deltaTime = currentFrame - lastFrame;
+        deltaTime = currentFrame - lastFrame + 1e-10;  // add a small eps for safety
         lastFrame = currentFrame;
         // measure FPS (Exponential Moving Average w/ alpha = 1 / Num Frames)
         // NOTE (jllusty): This starts / resets every time devmode is toggled *on*
@@ -143,6 +149,7 @@ int main(void)
             frames++;
             float alpha = 1.f/(float)frames;
             fps = ((((float)frames-1.f))*(oldfps) + 1.f/deltaTime)/(float)frames;
+            // bool inf_flag = isinf(fps);
             oldfps = fps;
         } else { frames = 0; fps = 0.0f; oldfps = 0.0f; }
 
@@ -218,10 +225,12 @@ void processInput(GLFWwindow *window) {
             float aspect = (float)graphics::scr_width/(float)graphics::scr_height;
             float zoom = camera.pos.z;
             proj = glm::ortho(-zoom*aspect, zoom*aspect, -zoom, zoom, 0.1f, 100.0f);
-            for (uint n = 0; n < graph1->nodes.size(); ++n) {
+            // for (uint n = 0; n < graph1->nodes.size(); ++n) {
+            for (const auto& [id, _] : graph1->nodes) {
+                graph::Node* node = core::get_entity<graph::Node>(id);
                 // get position of node in view coords
                 glm::mat4 model = glm::mat4(1.0f);
-                glm::vec3 nodePosition{ graph1->nodes[n]->properties->x, graph1->nodes[n]->properties->y, 0.0f };
+                glm::vec3 nodePosition{ node->x, node->y, 0.0f };
                 model = glm::translate(model, nodePosition);
                 // origin
                 glm::vec4 oPos = proj * view * model * glm::vec4(0.0f, 0.0f, 0.0f, 1.0);
@@ -235,7 +244,12 @@ void processInput(GLFWwindow *window) {
                 glm::vec2 mPos{ 2.f*mouse.x/graphics::scr_width-1.f, -2.f*mouse.y/graphics::scr_height+1.f };
                 // get distance from node origin to mouse position
                 float dMouse = glm::distance(glm::vec2(oPos.x, oPos.y), mPos);
-                if (dMouse < r) { selected = true; selectedNode = n; nodeSelected = true; break; }
+                if (dMouse < r) { 
+                    selected = true; 
+                    selectedNodeID = id; 
+                    nodeSelected = true; 
+                    break; 
+                }
             }
             if (!selected) { nodeSelected = false; }
         }
@@ -253,14 +267,19 @@ void processInput(GLFWwindow *window) {
             proj = glm::ortho(-zoom*aspect, zoom*aspect, -zoom, zoom, 0.1f, 100.0f);
             glm::mat4 model = glm::mat4(1.0f);
             //proj = glm::perspective(glm::radians(45.0f), (float)graphics::scr_width/(float)graphics::scr_height, 0.1f, 100.f);
-            glm::vec3 nodePosition{ graph1->nodes[selectedNode]->properties->x, graph1->nodes[selectedNode]->properties->y, 0.0f };
-            model = glm::translate(model, nodePosition);
-            glm::mat4 invCamera = glm::inverse(proj * view);
-            cPos = invCamera * mPos;
+
+            // NOTE: `get_entity` will return nullptr if the entity is not found.
+            graph::Node* node = core::get_entity<graph::Node>(selectedNodeID);
+            if (node != nullptr) {
+                glm::vec3 nodePosition{ node->x, node->y, 0.0f };
+                model = glm::translate(model, nodePosition);
+                glm::mat4 invCamera = glm::inverse(proj * view);
+                cPos = invCamera * mPos;
                 cPos = cPos / cPos.w;
-            auto newNode = graph1->nodes[selectedNode];
-            newNode->properties->x = cPos.x;
-            newNode->properties->y = cPos.y;
+                // auto newNode = graph->nodes[selectedNode];
+                node->x = cPos.x;
+                node->y = cPos.y;
+            }
         }
     }
     // we aren't touchy-touching anything
