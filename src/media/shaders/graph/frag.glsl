@@ -15,6 +15,11 @@ uniform int texSelection;
 uniform int selected;
 uniform vec3 highlight;
 
+// wire pulse
+uniform int pulsing; // 0 or 1
+uniform float pulse; // in [0, 1]
+uniform vec3 pulseColor;
+
 // node color
 uniform vec3 nodeColor;
 
@@ -36,6 +41,10 @@ void main()
     // Wire
     else if (texSelection == 2) {
         TexColor = texture(textureEdge, uv);
+        // Assimilation Pulse
+        if(pulsing == 1) {
+            TexColor.rgb = exp(-128.*pow(abs(uv.x-pulse),2.)) * pulseColor;
+        }
     }
     FragColor = TexColor;
 }

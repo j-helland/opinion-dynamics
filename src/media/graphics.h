@@ -14,6 +14,9 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
+// Current Time
+extern float currentTime;
+
 // Camera
 #include "camera.h"
 extern Camera camera;
@@ -21,6 +24,9 @@ extern Camera camera;
 // FPS reading
 extern bool devmode;
 extern float fps;
+
+// Updates per second
+extern unsigned int ups;
 
 // simulation status
 extern bool simulating;
@@ -37,9 +43,6 @@ extern graph::Graph* graph1;
 // selected nodes
 extern bool nodeSelected;
 extern uint selectedNode;
-
-// mouse coordinates in world coordinates
-extern glm::vec4 cPos;
 
 namespace graphics {
     // GLFW window
@@ -60,6 +63,24 @@ namespace graphics {
     GLuint textureNode;    // Node
     GLuint textureEdge;    // Edge
     GLuint textureFont;    // Font Bitmap
+
+    // Node transitions
+    struct node_trans {
+        uint node_from;
+        uint node_to;
+        bool old_opinion;
+    };
+    std::vector<node_trans> nodeTrans {};
+
+    // one at a time
+    void push_node_trans(uint node_from, uint node_to, bool old_opinion) {
+        node_trans trans{node_from, node_to, old_opinion};
+        nodeTrans.push_back(trans);
+    }
+    // all at once
+    void pop_node_trans() {
+        nodeTrans.clear();
+    }
 
     // Init Graphics (Start GLFW, Load OpenGL with GLAD)
     void init(void);
@@ -292,6 +313,8 @@ namespace graphics {
         glBindVertexArray(VAO);
 
         // Render wires
+        // NOTE (jllusty): Draws texture with uv.x = -1 at 
+        // elem.first and uv.x = +1 at elem.second
         GLint selection = 2;
         glUniform1i(selectLoc, selection);
         for(const auto& elem: graph1->edges) {
@@ -305,12 +328,61 @@ namespace graphics {
             // set model matrix
             glm::mat4 model = glm::mat4(1.0f);
             glm::vec3 edgePosition{ (x1+x2)/2.f, (y1+y2)/2.f, 0.f };
-            float theta = atan((y2-y1)/(x2-x1));
+            float theta = atan2((y2-y1),(x2-x1));
             model = glm::translate(model, edgePosition);
             model = glm::rotate(model, theta, glm::vec3(0.f,0.f,1.f));
             model = glm::scale(model, glm::vec3(dist/2.f, 1.f, 1.f));
             GLuint modelLoc = glGetUniformLocation(shaderGraph, "model");
             glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+            // assimilation pulse
+            GLint pulsing;
+            GLuint pulsingLoc = glGetUniformLocation(shaderGraph, "pulsing");
+            if (nodeTrans.empty()) {
+                pulsing = 0;
+                glUniform1i(pulsingLoc, pulsing);
+            }
+            else {
+                bool found{ false };
+                for(auto trans : nodeTrans){
+                    if ((trans.node_to == elem.first) && (trans.node_from == elem.second)) {
+                        pulsing = 1;
+                        glUniform1i(pulsingLoc, pulsing);
+                        // pulse color
+                        GLuint pulseColorLoc = glGetUniformLocation(shaderGraph, "pulseColor");
+                        glm::vec3 green{ 0.0f, 1.0f, 0.0f };
+                        glm::vec3 red{ 1.0f, 0.0f, 0.0f };
+                        glm::vec3 pulseColor = (graph1->nodes[elem.second]->properties->opinion)?green:red;
+                        glUniform3fv(pulseColorLoc, 1, glm::value_ptr(pulseColor));
+                        // compute pulse
+                        GLuint pulseLoc = glGetUniformLocation(shaderGraph, "pulse");
+                        float pulse = 1.2f * (ups*currentTime - floor(ups*currentTime)) - 0.1f;
+                            pulse = 1.2f - pulse;
+                        glUniform1f(pulseLoc, pulse);
+                        found = true;
+                        break;
+                    }
+                    else if ((trans.node_to == elem.second) && (trans.node_from == elem.first)) {
+                        pulsing = 1;
+                        glUniform1i(pulsingLoc, pulsing);
+                        // pulse color
+                        GLuint pulseColorLoc = glGetUniformLocation(shaderGraph, "pulseColor");
+                        glm::vec3 green{ 0.0f, 1.0f, 0.0f };
+                        glm::vec3 red{ 1.0f, 0.0f, 0.0f };
+                        glm::vec3 pulseColor = (graph1->nodes[elem.second]->properties->opinion)?green:red;
+                        glUniform3fv(pulseColorLoc, 1, glm::value_ptr(pulseColor));
+                        // compute pulse
+                        GLuint pulseLoc = glGetUniformLocation(shaderGraph, "pulse");
+                        float pulse = 1.2f * (ups*currentTime - floor(ups*currentTime)) - 0.1f; 
+                        glUniform1f(pulseLoc, pulse);
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    pulsing = 0;
+                    glUniform1i(pulsingLoc, pulsing);
+                }
+            }
             // draw edge
             glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         }
@@ -329,7 +401,21 @@ namespace graphics {
             GLuint colorLoc = glGetUniformLocation(shaderGraph, "nodeColor");
             glm::vec3 green{ 0.0f, 1.0f, 0.0f };
             glm::vec3 red{ 1.0f, 0.0f, 0.0f };
-            glm::vec3 nodeColor = (graph1->nodes[n]->properties->opinion)?green:red;
+            glm::vec3 nodeColor{ 0.0f, 0.0f, 0.0f};
+            if(nodeTrans.empty()) {
+                nodeColor = (graph1->nodes[n]->properties->opinion)?green:red;
+            } 
+            else {
+                bool found{ false };
+                for (auto trans: nodeTrans) {
+                    if(trans.node_to == n) {
+                        nodeColor = (trans.old_opinion)?green:red;
+                        found = true;
+                        break;
+                    }
+                }
+                if(!found) nodeColor = (graph1->nodes[n]->properties->opinion)?green:red;
+            }
             glUniform3fv(colorLoc, 1, glm::value_ptr(nodeColor));
             // highlight if selected node
             GLuint selLoc  = glGetUniformLocation(shaderGraph, "selected");

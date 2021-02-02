@@ -34,6 +34,8 @@ struct Mouse {
 Mouse mouse;
 
 // Runtime Diagnostics / Devmode
+// updates per second
+unsigned int ups{ 3 };
 // NOTE (jllusty): This should turn into a diagnostic struct of info to extern to the renderer.
 bool devmode{ false };
 float fps{ 0.f };
@@ -41,7 +43,7 @@ float fps{ 0.f };
 void devmode_toggle(GLFWwindow* window, int key, int scancode, int action, int mods);
 
 // Graph
-#define TEST_SIZE (32)
+#define TEST_SIZE (16)
 //#define TEST_SIMULATION_STEPS (100)
 
 // From voter_model_test.cpp
@@ -52,22 +54,35 @@ void devmode_toggle(GLFWwindow* window, int key, int scancode, int action, int m
 #include "dynamics/utils.h"
 #include "random.h"
 
+// JSON
 #include "nlohmann/json.hpp"
+
+// timing
+float currentTime{ 0.f };
 
 // graph
 graph::Graph* graph1 { nullptr };
 // updating
-bool simulating{ true };
+bool simulating{ false };
 // selected node
 bool nodeSelected{ false };
 uint selectedNode{ 0 };
-// current position of mouse in world coords
-glm::vec4 cPos;
+
+// rand utility
+// NOTE: (jllusty) There's gotta be an easier way
+//       to store the edges, Jon.
+template<typename S>
+auto select_random(const S &s, size_t n) {
+    auto it = std::begin(s);
+    std::advance(it, n);
+    return it;
+}
 
 int main(void)
 {
-    cPos = glm::vec4(0.f, 0.f, 0.f, 0.f);
     // Make a Graph
+    // NOTE (jllusty): need a "filter" after making graphs to remove edges that are double counted if
+    //                 we are assuming a non-directed graph
     graph1 = graph::make(TEST_SIZE);  // undirected graph
     init_graph_opinions(graph1);  // uniform-random opinions
     // add edges
@@ -75,20 +90,22 @@ int main(void)
     for (uint n = 0; n < graph1->nodes.size(); ++n) {
         for (uint k = 0; k < graph1->nodes.size(); ++k) {
             if (n == k) continue;
-            if (dist(rng::generator)) {
-                graph::add_edge(graph1, n, k);
-            }
+            if (graph::has_edge(graph1, n, k) || graph::has_edge(graph1, k, n)) continue;
+            graph::add_edge(graph1, n, k);
+            //if (dist(rng::generator)) {
+            //graph::add_edge(graph1, n, k);
+            //}
         }
     }
     // move 'em around
     // theta
     float pi = 4. * atan(1.f);
     float theta = 0.0f;
-    float radius = 3.f;
+    float radius = 10.f;
     for (uint n = 0; n < graph1->nodes.size(); ++n) {
         theta = (float)n * 2.0f * pi / (float)(graph1->nodes.size());
-        float x = 10.f*cos(theta);
-        float y = 10.f*sin(theta);
+        float x = radius*cos(theta);
+        float y = radius*sin(theta);
         graph1->nodes[n]->properties->x = x;
         graph1->nodes[n]->properties->y = y;
     }
@@ -137,6 +154,8 @@ int main(void)
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
+        // global time
+        if(simulating) currentTime += deltaTime;
         // measure FPS (Exponential Moving Average w/ alpha = 1 / Num Frames)
         // NOTE (jllusty): This starts / resets every time devmode is toggled *on*
         if(devmode) {
@@ -146,11 +165,25 @@ int main(void)
             oldfps = fps;
         } else { frames = 0; fps = 0.0f; oldfps = 0.0f; }
 
-        // update graph every 1/5 second of realtime
-        if ((uint)(2.5f*currentFrame) > currentSecond) {
+        // update graph every 1 second of realtime
+        if (simulating && ((uint)(ups*currentTime) > currentSecond)) {
+            // clear diffs
+            if(!graphics::nodeTrans.empty()) graphics::pop_node_trans();
             currentSecond++;
-            if (! simulating) continue;
-            step_sznajd_dynamics(graph1, sample_edge(graph1));
+
+            //step_sznajd_dynamics(graph1, sample_edge(graph1));
+            // basic voter model example
+            auto r = rand() % (graph1->edges.size());
+            auto edge = *select_random(graph1->edges, r);
+            bool opinion1 = graph1->nodes[edge.first]->properties->opinion;
+            bool opinion2 = graph1->nodes[edge.second]->properties->opinion;
+            // if the opinions differ, then target changes its opinion to that of its selected neighbor
+            if (opinion1 != opinion2) {
+                // accumulate diffs
+                graphics::push_node_trans(edge.second, edge.first, opinion1);
+                // commit diffs
+                graph1->nodes[edge.first]->properties->opinion = opinion2;
+            }
         }
 
         /* Process Input */
@@ -256,7 +289,7 @@ void processInput(GLFWwindow *window) {
             glm::vec3 nodePosition{ graph1->nodes[selectedNode]->properties->x, graph1->nodes[selectedNode]->properties->y, 0.0f };
             model = glm::translate(model, nodePosition);
             glm::mat4 invCamera = glm::inverse(proj * view);
-            cPos = invCamera * mPos;
+            glm::vec4 cPos = invCamera * mPos;
                 cPos = cPos / cPos.w;
             auto newNode = graph1->nodes[selectedNode];
             newNode->properties->x = cPos.x;
