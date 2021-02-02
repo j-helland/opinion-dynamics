@@ -1,5 +1,5 @@
-#ifndef VOTER_MODEL_TEST
-#define VOTER_MODEL_TEST
+#ifndef SZNAJD_MODEL_TEST
+#define SZNAJD_MODEL_TEST
 
 
 #include <stdio.h>
@@ -7,7 +7,7 @@
 
 #include "../types.h"
 #include "../data_structures/graph.h"
-#include "../dynamics/models/voter_model.h"
+#include "../dynamics/models/sznajd.h"
 #include "../dynamics/utils.h"
 
 #ifndef TEST_SIZE
@@ -15,7 +15,7 @@
 #endif
 #define TEST_SIMULATION_STEPS (100)
 
-int voter_model_test(void) {
+int sznajd_model_test(void) {
     auto* graph = new graph::Graph;
     graph::make(graph, TEST_SIZE);
     init_graph_opinions(graph);  // uniform-random opinions
@@ -28,10 +28,10 @@ int voter_model_test(void) {
 
     // make sure that a single step works properly
     auto edge = sample_edge(graph);
-    step_voter_dynamics(graph, edge);
-    auto n1 = core::get_entity<graph::Node>(edge.first);
-    auto n2 = core::get_entity<graph::Node>(edge.second);
-    assert( n1->opinion == n2->opinion );
+    step_sznajd_dynamics(graph, edge);
+    // auto n1 = core::get_entity<graph::Node>(edge.first);
+    // auto n2 = core::get_entity<graph::Node>(edge.second);
+    // assert( n1->opinion == n2->opinion );
 
     return 0;
 }
