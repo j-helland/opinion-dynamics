@@ -34,8 +34,6 @@ struct Mouse {
 Mouse mouse;
 
 // Runtime Diagnostics / Devmode
-// updates per second
-unsigned int ups{ 1 };
 // NOTE (jllusty): This should turn into a diagnostic struct of info to extern to the renderer.
 bool devmode{ false };
 float fps{ 0.f };
@@ -43,8 +41,19 @@ float fps{ 0.f };
 void devmode_toggle(GLFWwindow* window, int key, int scancode, int action, int mods);
 
 // Graph
-#define TEST_SIZE (16)
+#define TEST_SIZE (64)
 //#define TEST_SIMULATION_STEPS (100)
+
+// Simulation settings
+// updates per second
+unsigned int ups{ 1 };
+// simulation mode
+// NOTE (jllusty): This is fine for now, but really needs to be moved lmao
+enum class Model {
+    Voter,
+    Sznajd
+};
+Model model{ Model::Sznajd };
 
 // From voter_model_test.cpp
 #include "types.h"
@@ -94,23 +103,25 @@ int main(void)
         for (const auto& [id2, _] : graph1->nodes) {
             if (id1 == id2) continue;
             if (graph::has_edge(graph1, id1, id2) || graph::has_edge(graph1, id2, id1)) continue;
-            graph::add_edge(graph1, id1, id2);
-            //if (dist(rng::generator)) {
             //graph::add_edge(graph1, id1, id2);
-            //}
+            if (dist(rng::generator)) {
+                graph::add_edge(graph1, id1, id2);
+            }
         }
     }
     // move 'em around
     // theta
     float pi = 4. * atan(1.f);
     float theta = 0.0f;
-    float radius = 3.f;
+    float radius = 32.f;
     uint n = 0;
     for (const auto& [id, _] : graph1->nodes) {
         graph::Node* node = core::get_entity<graph::Node>(id);
         theta = (float)n * 2.0f * pi / (float)(graph1->nodes.size());
-        node->x = 10.f*cos(theta);
-        node->y = 10.f*sin(theta);
+        //node->x = radius*cos(theta);
+        //node->y = radius*sin(theta);
+        node->x = (50-(float)(rand() % 100))/100.f * radius;
+        node->y = (50-(float)(rand() % 100))/100.f * radius;
         n++;
     }
 
@@ -176,19 +187,65 @@ int main(void)
             if(!graphics::nodeTrans.empty()) graphics::pop_node_trans();
             currentSecond++;
 
-            //step_sznajd_dynamics(graph1, sample_edge(graph1));
-            // basic voter model example
-            auto edge = sample_edge(graph1);
-            auto node1 = core::get_entity<graph::Node>(edge.first);
-            auto node2 = core::get_entity<graph::Node>(edge.second);
-            bool opinion1 = node1->opinion;
-            bool opinion2 = node2->opinion;
-            // if the opinions differ, then target changes its opinion to that of its selected neighbor
-            if (opinion1 != opinion2) {
-                // accumulate diffs
-                graphics::push_node_trans(edge.second, edge.first, opinion1);
-                // commit diffs
-                node1->opinion = opinion2;
+            // Example Model Implementations
+            //  Voter Model
+            if (model == Model::Voter) {
+                auto edge = sample_edge(graph1);
+                auto node1 = core::get_entity<graph::Node>(edge.first);
+                auto node2 = core::get_entity<graph::Node>(edge.second);
+                bool opinion1 = node1->opinion;
+                bool opinion2 = node2->opinion;
+                // if the opinions differ, then target changes its opinion to that of its selected neighbor
+                if (opinion1 != opinion2) {
+                    // accumulate diffs
+                    graphics::push_node_trans(edge.second, edge.first, opinion1);
+                    // commit diffs
+                    node1->opinion = opinion2;
+                }
+            }
+            //  Sznajd
+            if (model == Model::Sznajd) {
+                auto edge = sample_edge(graph1);
+                auto node1 = core::get_entity<graph::Node>(edge.first);
+                auto node2 = core::get_entity<graph::Node>(edge.second);
+                bool opinion1 = node1->opinion;
+                bool opinion2 = node2->opinion;
+                if (opinion1 == opinion2) {
+                    // All neighbors take this opinion.
+                    for (auto id : graph1->nodes.at(edge.first)) {
+                        auto neighbor = core::get_entity<graph::Node>(id);
+                        // accumulate diffs
+                        graphics::push_node_trans(edge.first, id, neighbor->opinion);
+                        // commit diffs
+                        neighbor->opinion = opinion1;
+                    }
+                    for (auto id : graph1->nodes.at(edge.second)) {
+                        auto neighbor = core::get_entity<graph::Node>(id);
+                        // accumulate diffs
+                        graphics::push_node_trans(edge.second, id, neighbor->opinion);
+                        // commit diffs
+                        neighbor->opinion = opinion1;
+                    }
+                }
+                else {
+                    // Neighbors take corresponding opinions.
+                    for (auto id : graph1->nodes.at(edge.first)) {
+                        if (id == edge.second) continue;
+                        auto neighbor = core::get_entity<graph::Node>(id);
+                        // accumulate diffs
+                        graphics::push_node_trans(edge.first, id, neighbor->opinion);
+                        // commit diffs
+                        neighbor->opinion = opinion1;
+                    }
+                    for (auto id : graph1->nodes.at(edge.second)) {
+                        if (id == edge.first) continue;
+                        auto neighbor = core::get_entity<graph::Node>(id);
+                        // accumulate diffs
+                        graphics::push_node_trans(edge.second, id, neighbor->opinion);
+                        // commit diffs
+                        neighbor->opinion = opinion2;
+                    }
+                }
             }
         }
 
