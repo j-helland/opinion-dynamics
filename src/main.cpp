@@ -14,7 +14,19 @@
 #include "media/audio.h"
 // Camera Object
 #include "camera.h"
-Camera camera;
+// From voter_model_test.cpp
+#include "types.h"
+#include "data_structures/graph.h"
+#include "core/entity_manager.h"
+// #include "models/voter_model.h"
+#include "dynamics/models/sznajd.h"
+#include "dynamics/utils.h"
+#include "random.h"
+// JSON
+#include "nlohmann/json.hpp"
+// timing
+#include <thread>
+#include <chrono>
 
 // Window Resize Callback
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -22,10 +34,8 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 // Process Input Handle
 void processInput(GLFWwindow* window);
 
-// Frame-by-frame Timing
-float deltaTime{ 0.0f };
-float lastFrame{ 0.0f };
-
+// Camera Object
+Camera camera;
 // Highly abstract Mouse Object
 struct Mouse {
     double x;
@@ -55,35 +65,19 @@ enum class Model {
 };
 Model model{ Model::Sznajd };
 
-// From voter_model_test.cpp
-#include "types.h"
-#include "data_structures/graph.h"
-#include "core/entity_manager.h"
-// #include "models/voter_model.h"
-#include "dynamics/models/sznajd.h"
-#include "dynamics/utils.h"
-#include "random.h"
-
-// JSON
-#include "nlohmann/json.hpp"
-
+// capped seconds per frame
+const float spf = 1.0/60.0f;
 // timing
 float currentTime{ 0.f };
+// Frame-by-frame Timing
+float deltaTime{ 0.0f };
+float lastFrame{ 0.0f };
 
 // graph
 graph::Graph* graph1 { nullptr };
 // updating
 bool simulating{ false };
 
-// rand utility
-// NOTE: (jllusty) There's gotta be an easier way
-//       to store the edges, Jon.
-template<typename S>
-auto select_random(const S &s, size_t n) {
-    auto it = std::begin(s);
-    std::advance(it, n);
-    return it;
-}
 // id of selected Node
 core::id_t selectedNodeID{ 0 };
 // selected node
@@ -118,10 +112,10 @@ int main(void)
     for (const auto& [id, _] : graph1->nodes) {
         graph::Node* node = core::get_entity<graph::Node>(id);
         theta = (float)n * 2.0f * pi / (float)(graph1->nodes.size());
-        //node->x = radius*cos(theta);
-        //node->y = radius*sin(theta);
-        node->x = (50-(float)(rand() % 100))/100.f * radius;
-        node->y = (50-(float)(rand() % 100))/100.f * radius;
+        node->x = radius*cos(theta);
+        node->y = radius*sin(theta);
+        //node->x = (500-(float)(rand() % 1000))/1000.f * radius;
+        //node->y = (500-(float)(rand() % 1000))/1000.f * radius;
         n++;
     }
 
@@ -165,6 +159,7 @@ int main(void)
     while (!glfwWindowShouldClose(graphics::window))
     {
         /* Timing Calculations */
+        double start = glfwGetTime();
         // per-frame timing
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame + 1e-10;  // add a small eps for safety
@@ -264,6 +259,11 @@ int main(void)
         glfwSwapBuffers(graphics::window);
         /* Poll for and process events */
         glfwPollEvents();
+
+        // How long did we take?
+        double penalty = start + spf - glfwGetTime();
+        // Stop! You violated the law.
+        std::this_thread::sleep_for(std::chrono::duration<double>(penalty));
     }
 
     /* OpenAL: clean-up */
