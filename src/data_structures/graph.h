@@ -98,9 +98,6 @@ namespace graph {
         return graph->nodes.at(node_id).size();
     }
 
-    // Return 1 if edge (source, dest) exists, 0 otherwise.
-    // O(n log n) on first call due to possible sorting, but subsequent calls without the addition of edges will be faster.
-    // int has_edge(const Graph* graph, uint source, uint dest) {
     bool has_edge(const Graph* graph, const core::id_t source, const core::id_t dest) {
         assert( has_node(graph, source) );
         assert( has_node(graph, dest) );

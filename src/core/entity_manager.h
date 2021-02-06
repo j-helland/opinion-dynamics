@@ -51,7 +51,6 @@ namespace core {
 
     void clear_all_entities(void) {
         g_entity_id_map.clear();
-
         NEXT_ID = 0;
     }
 

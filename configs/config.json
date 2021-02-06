@@ -1,0 +1,12 @@
+{
+    "rendering": {
+        "g_fps_cap": 60, 
+        "g_frame_delta_correction": 1e-10,
+        "graphics::g_scr_width": 640,
+        "graphics::g_scr_height": 480
+    },
+    "simulation": {
+        "g_dynamics_updates_per_second": 1,
+        "g_graph_test_size": 64
+    }
+}
