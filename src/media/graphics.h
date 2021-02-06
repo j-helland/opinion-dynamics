@@ -45,6 +45,9 @@ extern graph::Graph* graph1;
 extern bool nodeSelected;
 extern core::id_t selectedNodeID;
 
+#include <stack>
+#include <unordered_map>
+
 namespace graphics {
     // GLFW window
     GLFWwindow* window{ nullptr };
@@ -65,22 +68,55 @@ namespace graphics {
     GLuint textureEdge;    // Edge
     GLuint textureFont;    // Font Bitmap
 
-    // Node transitions
-    struct node_trans {
-        core::id_t node_from;
-        core::id_t node_to;
-        bool old_opinion;
+    // Edge and Node transition structures
+    // NOTE: (jllusty) I have no idea what I am doing.jpg
+    struct live_edge {
+        core::id_t start_node;
+        core::id_t end_node;
+        float start_time;
+        float end_time;
     };
-    std::vector<node_trans> nodeTrans {};
-
-    // one at a time
-    void push_node_trans(core::id_t node_from, core::id_t node_to, bool old_opinion) {
-        node_trans trans{node_from, node_to, old_opinion};
-        nodeTrans.push_back(trans);
+    std::unordered_map<graph::edge_t, live_edge*, graph::edge_hash> liveEdges {};
+    struct live_node {
+        bool opinion;
+        float start_time;
+        float end_time;
+    };
+    std::unordered_map<core::id_t, live_node*> liveNodes {};
+    void make_transition(graph::edge_t edge, core::id_t node_to, core::id_t node_from, bool old_opinion, double start_time, double end_time) {
+        liveEdges[edge] = new live_edge;
+            liveEdges[edge]->start_node = node_from;
+            liveEdges[edge]->end_node = node_to;
+            liveEdges[edge]->start_time = start_time;
+            liveEdges[edge]->end_time = end_time;
+        liveNodes[node_to] = new live_node;
+            liveNodes[node_to]->opinion = old_opinion;
+            liveNodes[node_to]->start_time = start_time;
+            liveNodes[node_to]->end_time = end_time;
     }
-    // all at once
-    void pop_node_trans() {
-        nodeTrans.clear();
+    void clear_transitions(void) {
+        auto it1 = liveEdges.begin();
+        while(it1 != liveEdges.end()) {
+            if (it1->second) {
+                if(it1->second->end_time < currentTime) {
+                    delete it1->second;
+                    it1 = liveEdges.erase(it1);
+                }
+                else it1++;
+            }
+            else it1++;
+        }
+        auto it2 = liveNodes.begin();
+        while(it2 != liveNodes.end()) {
+            if (it2->second) {
+                if(it2->second->end_time < currentTime) {
+                    delete it2->second;
+                    it2 = liveNodes.erase(it2);
+                }
+                else it2++;
+            }
+            else it2++;
+        }
     }
 
     // Init Graphics (Start GLFW, Load OpenGL with GLAD)
@@ -318,9 +354,9 @@ namespace graphics {
         // elem.first and uv.x = +1 at elem.second
         GLint selection = 2;
         glUniform1i(selectLoc, selection);
-        for(const auto& [id1, id2]: graph1->edges) {
-            auto node1 = core::get_entity<graph::Node>(id1);
-            auto node2 = core::get_entity<graph::Node>(id2);
+        for(const auto& edge : graph1->edges) {
+            auto node1 = core::get_entity<graph::Node>(edge.first);
+            auto node2 = core::get_entity<graph::Node>(edge.second);
             // auto node1 = graph1->nodes[elem.first];
             // auto node2 = graph1->nodes[elem.second];
             float x1 = node1->x;
@@ -340,51 +376,24 @@ namespace graphics {
             // assimilation pulse
             GLint pulsing;
             GLuint pulsingLoc = glGetUniformLocation(shaderGraph, "pulsing");
-            if (nodeTrans.empty()) {
-                pulsing = 0;
+            if (liveEdges[edge]) {
+                pulsing = 1;
                 glUniform1i(pulsingLoc, pulsing);
+                // pulse color
+                GLuint pulseColorLoc = glGetUniformLocation(shaderGraph, "pulseColor");
+                glm::vec3 green{ 0.0f, 1.0f, 0.0f };
+                glm::vec3 red{ 1.0f, 0.0f, 0.0f };
+                glm::vec3 pulseColor = (core::get_entity<graph::Node>(liveEdges[edge]->start_node)->opinion)?green:red;
+                glUniform3fv(pulseColorLoc, 1, glm::value_ptr(pulseColor));
+                // compute pulse
+                GLuint pulseLoc = glGetUniformLocation(shaderGraph, "pulse");
+                float pulse = 1.2f * (ups*currentTime - floor(ups*currentTime)) - 0.1f;
+                if(liveEdges[edge]->start_node != edge.first) pulse = 1.2f - pulse;
+                glUniform1f(pulseLoc, pulse);
             }
             else {
-                bool found{ false };
-                for(auto trans : nodeTrans){
-                    if ((trans.node_to == id1) && (trans.node_from == id2)) {
-                        pulsing = 1;
-                        glUniform1i(pulsingLoc, pulsing);
-                        // pulse color
-                        GLuint pulseColorLoc = glGetUniformLocation(shaderGraph, "pulseColor");
-                        glm::vec3 green{ 0.0f, 1.0f, 0.0f };
-                        glm::vec3 red{ 1.0f, 0.0f, 0.0f };
-                        glm::vec3 pulseColor = (node1->opinion)?green:red;
-                        glUniform3fv(pulseColorLoc, 1, glm::value_ptr(pulseColor));
-                        // compute pulse
-                        GLuint pulseLoc = glGetUniformLocation(shaderGraph, "pulse");
-                        float pulse = 1.2f * (ups*currentTime - floor(ups*currentTime)) - 0.1f;
-                            pulse = 1.2f - pulse;
-                        glUniform1f(pulseLoc, pulse);
-                        found = true;
-                        break;
-                    }
-                    else if ((trans.node_to == id2) && (trans.node_from == id1)) {
-                        pulsing = 1;
-                        glUniform1i(pulsingLoc, pulsing);
-                        // pulse color
-                        GLuint pulseColorLoc = glGetUniformLocation(shaderGraph, "pulseColor");
-                        glm::vec3 green{ 0.0f, 1.0f, 0.0f };
-                        glm::vec3 red{ 1.0f, 0.0f, 0.0f };
-                        glm::vec3 pulseColor = (node2->opinion)?green:red;
-                        glUniform3fv(pulseColorLoc, 1, glm::value_ptr(pulseColor));
-                        // compute pulse
-                        GLuint pulseLoc = glGetUniformLocation(shaderGraph, "pulse");
-                        float pulse = 1.2f * (ups*currentTime - floor(ups*currentTime)) - 0.1f; 
-                        glUniform1f(pulseLoc, pulse);
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    pulsing = 0;
-                    glUniform1i(pulsingLoc, pulsing);
-                }
+                pulsing = 0;
+                glUniform1i(pulsingLoc, pulsing);
             }
             // draw edge
             glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
@@ -407,20 +416,12 @@ namespace graphics {
             glm::vec3 green{ 0.0f, 1.0f, 0.0f };
             glm::vec3 red{ 1.0f, 0.0f, 0.0f };
             glm::vec3 nodeColor{ 0.0f, 0.0f, 0.0f};
-            if(nodeTrans.empty()) {
+            if(liveNodes[id]) {
+                nodeColor = (liveNodes[id]->opinion)?green:red;
+            }
+            else {
                 nodeColor = (node->opinion)?green:red;
             } 
-            else {
-                bool found{ false };
-                for (auto trans: nodeTrans) {
-                    if(trans.node_to == id) {
-                        nodeColor = (trans.old_opinion)?green:red;
-                        found = true;
-                        break;
-                    }
-                }
-                if(!found) nodeColor = (node->opinion)?green:red;
-            }
             glUniform3fv(colorLoc, 1, glm::value_ptr(nodeColor));
             // highlight if selected node
             GLuint selLoc  = glGetUniformLocation(shaderGraph, "selected");
