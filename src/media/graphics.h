@@ -26,7 +26,10 @@ extern bool devmode;
 extern float fps;
 
 // Updates per second
-extern unsigned int ups;
+// extern unsigned int ups;
+//// Globals
+#include "../globals.h"
+// uint g_dynamics_updates_per_second;
 
 // simulation status
 extern bool simulating;
@@ -50,8 +53,8 @@ namespace graphics {
     GLFWwindow* window{ nullptr };
 
     // Window
-    GLsizei scr_width{ 640 };
-    GLsizei scr_height{ 480 };
+    GLsizei g_scr_width;
+    GLsizei g_scr_height;
 
     // ShaderProgram
     GLuint shaderGraph;    // Shader Program for Drawing Graph
@@ -117,7 +120,7 @@ namespace graphics {
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
         // Create a windowed mode window and its OpenGL context
-        window = glfwCreateWindow(scr_width, scr_height, "Opinion Dynamics", NULL, NULL);
+        window = glfwCreateWindow(g_scr_width, g_scr_height, "Opinion Dynamics", NULL, NULL);
         if (!window) {
             fprintf(stderr, "(glfw) Failed to create window\n");
             glfwTerminate();
@@ -297,7 +300,7 @@ namespace graphics {
         glm::mat4 view  = glm::mat4(1.0f);
         glm::mat4 proj  = glm::mat4(1.0f);
         view = glm::lookAt(camera.pos, camera.pos + camera.front, camera.up);
-        float aspect = (float)scr_width/(float)scr_height;
+        float aspect = (float)g_scr_width/(float)g_scr_height;
         float zoom = camera.pos.z;
         proj = glm::ortho(-zoom*aspect, zoom*aspect, -zoom, zoom, 0.1f, 100.0f);
         //proj = glm::perspective(glm::radians(45.0f), (float)scr_width/(float)scr_height, 0.1f, 100.f);
@@ -358,8 +361,13 @@ namespace graphics {
                         glUniform3fv(pulseColorLoc, 1, glm::value_ptr(pulseColor));
                         // compute pulse
                         GLuint pulseLoc = glGetUniformLocation(shaderGraph, "pulse");
-                        float pulse = 1.2f * (ups*currentTime - floor(ups*currentTime)) - 0.1f;
-                            pulse = 1.2f - pulse;
+                        // formatting math is hard
+                        float pulse =
+                            1.2f * ( 
+                                g_dynamics_updates_per_second * currentTime
+                                - floor(g_dynamics_updates_per_second * currentTime) ) 
+                            - 0.1f;
+                        pulse = 1.2f - pulse;
                         glUniform1f(pulseLoc, pulse);
                         found = true;
                         break;
@@ -375,7 +383,11 @@ namespace graphics {
                         glUniform3fv(pulseColorLoc, 1, glm::value_ptr(pulseColor));
                         // compute pulse
                         GLuint pulseLoc = glGetUniformLocation(shaderGraph, "pulse");
-                        float pulse = 1.2f * (ups*currentTime - floor(ups*currentTime)) - 0.1f; 
+                        float pulse = 
+                            1.2f * (
+                                g_dynamics_updates_per_second * currentTime 
+                                - floor(g_dynamics_updates_per_second * currentTime) ) 
+                            - 0.1f; 
                         glUniform1f(pulseLoc, pulse);
                         found = true;
                         break;

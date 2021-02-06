@@ -8,6 +8,10 @@
 #include <assert.h>
 //
 #include <cmath>
+// timing
+#include <thread>
+#include <chrono>
+
 // OpenGL
 #include "media/graphics.h"
 // OpenAL
@@ -22,51 +26,17 @@
 #include "dynamics/models/sznajd.h"
 #include "dynamics/utils.h"
 #include "random.h"
-// JSON
-#include "nlohmann/json.hpp"
-// timing
-#include <thread>
-#include <chrono>
+#include "core/configs.h"
 
-// Window Resize Callback
-void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+//================================================== 
+// Globals
+//==================================================
+#include "globals.h"
+uint g_fps_cap;
+float g_frame_delta_correction; 
+uint g_dynamics_updates_per_second;
+uint g_graph_test_size;
 
-// Process Input Handle
-void processInput(GLFWwindow* window);
-
-// Camera Object
-Camera camera;
-// Highly abstract Mouse Object
-struct Mouse {
-    double x;
-    double y;
-};
-Mouse mouse;
-
-// Runtime Diagnostics / Devmode
-// NOTE (jllusty): This should turn into a diagnostic struct of info to extern to the renderer.
-bool devmode{ false };
-float fps{ 0.f };
-// GLFWKey Callback for Devmode Toggle (and other toggles)
-void devmode_toggle(GLFWwindow* window, int key, int scancode, int action, int mods);
-
-// Graph
-#define TEST_SIZE (64)
-//#define TEST_SIMULATION_STEPS (100)
-
-// Simulation settings
-// updates per second
-unsigned int ups{ 1 };
-// simulation mode
-// NOTE (jllusty): This is fine for now, but really needs to be moved lmao
-enum class Model {
-    Voter,
-    Sznajd
-};
-Model model{ Model::Sznajd };
-
-// capped seconds per frame
-const float spf = 1.0/60.0f;
 // timing
 float currentTime{ 0.f };
 // Frame-by-frame Timing
@@ -83,13 +53,78 @@ core::id_t selectedNodeID{ 0 };
 // selected node
 bool nodeSelected{ false };
 
+// Camera Object
+Camera camera;
+// Highly abstract Mouse Object
+struct Mouse {
+    double x;
+    double y;
+};
+Mouse mouse;
+
+// Runtime Diagnostics / Devmode
+// NOTE (jllusty): This should turn into a diagnostic struct of info to extern to the renderer.
+bool devmode{ false };
+float fps{ 0.f };
+
+// NOTE (jllusty): This is fine for now, but really needs to be moved lmao
+enum class Model {
+    Voter,
+    Sznajd
+};
+Model model{ Model::Sznajd };
+
+//================================================== 
+// Forward declarations
+//==================================================
+// Window Resize Callback
+void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+
+// Process Input Handle
+void processInput(GLFWwindow* window);
+
+// GLFWKey Callback for Devmode Toggle (and other toggles)
+void devmode_toggle(GLFWwindow* window, int key, int scancode, int action, int mods);
+
+// We need a way to conveniently update parameter values using the variable name to match w/ JSON field.
+#define VAR_NAME(var) (#var)
+// Normally this should just be an inline function, but we need to have the `VAR_NAME` macro capture the exterior variable name, not the inline function argument name.
+#define LOAD_PARAM(cfg_sec, type, var) \
+    core::load_param<type>( var, VAR_NAME(var), &core::GLOBAL_CONFIG[cfg_sec] )
+
+// I'm just implementing this up top because it's more convenient to see it here rather than after `main`.
+// TODO: This is probably going to get annoying to maintain. Is there a better way?
+void load_global_parameters() {
+    // We do this here to allow dynamic reloading of the config file.
+    core::init_global_config();
+
+    // NOTE: The name specified in config.json needs to exactly match the variable name.
+    //       This includes the namespace e.g. graphics::g_scr_width requires a JSON field named 
+    //       "graphics::g_scr_width".
+    // NOTE: All parameters must be contained within a nested JSON field. 
+    assert( LOAD_PARAM( "rendering", uint,    g_fps_cap ) );
+    assert( LOAD_PARAM( "rendering", float,   g_frame_delta_correction ) );
+    assert( LOAD_PARAM( "rendering", GLsizei, graphics::g_scr_width ) );
+    assert( LOAD_PARAM( "rendering", GLsizei, graphics::g_scr_height ) );
+
+    assert( LOAD_PARAM( "simulation", uint, g_dynamics_updates_per_second ) );
+    assert( LOAD_PARAM( "simulation", uint, g_graph_test_size ) );
+}
+
+//================================================== 
+// Main
+//==================================================
 int main(void)
 {
+    // This always be the first thing that happens in the program.
+    // Other files rely on the values loaded here.
+    load_global_parameters();
+
     // Make a Graph
     // NOTE (jllusty): need a "filter" after making graphs to remove edges that are double counted if
     //                 we are assuming a non-directed graph
     graph1 = new graph::Graph;
-    graph1 = graph::make(graph1, TEST_SIZE);  // undirected graph
+    graph1 = graph::make(graph1, g_graph_test_size);  // undirected graph
     init_graph_opinions(graph1);  // uniform-random opinions
     // add edges
     std::bernoulli_distribution dist(0.1f);
@@ -162,7 +197,7 @@ int main(void)
         double start = glfwGetTime();
         // per-frame timing
         float currentFrame = glfwGetTime();
-        deltaTime = currentFrame - lastFrame + 1e-10;  // add a small eps for safety
+        deltaTime = currentFrame - lastFrame + g_frame_delta_correction;
         lastFrame = currentFrame;
         // global time
         if(simulating) currentTime += deltaTime;
@@ -177,7 +212,7 @@ int main(void)
         } else { frames = 0; fps = 0.0f; oldfps = 0.0f; }
 
         // update graph every 1 second of realtime
-        if (simulating && ((uint)(ups*currentTime) > currentSecond)) {
+        if (simulating && ((uint)(g_dynamics_updates_per_second * currentTime) > currentSecond)) {
             // clear diffs
             if(!graphics::nodeTrans.empty()) graphics::pop_node_trans();
             currentSecond++;
@@ -261,6 +296,7 @@ int main(void)
         glfwPollEvents();
 
         // How long did we take?
+        float spf = 1.f / ( (float) g_fps_cap );
         double penalty = start + spf - glfwGetTime();
         // Stop! You violated the law.
         std::this_thread::sleep_for(std::chrono::duration<double>(penalty));
@@ -280,6 +316,9 @@ int main(void)
     return EXIT_SUCCESS;
 }
 
+//================================================== 
+// Functions
+//==================================================
 // continuous input
 void processInput(GLFWwindow *window) {
     const float speed = 20.f * deltaTime;
@@ -297,6 +336,9 @@ void processInput(GLFWwindow *window) {
         camera.pos.z -= speed;
     if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
         camera.pos.z += speed;
+    // Reload global parameters from config file
+    if (glfwGetKey(window, GLFW_KEY_F5) == GLFW_PRESS)
+        load_global_parameters();
 
     // check if we touchy-touched a node with a mouse clicky-click
     // update cursor position anyway
@@ -311,7 +353,7 @@ void processInput(GLFWwindow *window) {
             glm::mat4 view  = glm::mat4(1.0f);
             glm::mat4 proj  = glm::mat4(1.0f);
             view = glm::lookAt(camera.pos, camera.pos + camera.front, camera.up);
-            float aspect = (float)graphics::scr_width/(float)graphics::scr_height;
+            float aspect = (float)graphics::g_scr_width/(float)graphics::g_scr_height;
             float zoom = camera.pos.z;
             proj = glm::ortho(-zoom*aspect, zoom*aspect, -zoom, zoom, 0.1f, 100.0f);
             // for (uint n = 0; n < graph1->nodes.size(); ++n) {
@@ -330,7 +372,7 @@ void processInput(GLFWwindow *window) {
                 // radius
                 float r = glm::distance(oPos, ePos);
                 // mouse position in normalized screen coordinates
-                glm::vec2 mPos{ 2.f*mouse.x/graphics::scr_width-1.f, -2.f*mouse.y/graphics::scr_height+1.f };
+                glm::vec2 mPos{ 2.f*mouse.x/graphics::g_scr_width-1.f, -2.f*mouse.y/graphics::g_scr_height+1.f };
                 // get distance from node origin to mouse position
                 float dMouse = glm::distance(glm::vec2(oPos.x, oPos.y), mPos);
                 if (dMouse < r) { 
@@ -346,12 +388,12 @@ void processInput(GLFWwindow *window) {
         // drag that little 'en along
         else {
             // mouse position in normalized "screen" coordinates
-            glm::vec4 mPos{ 2.f*mouse.x/graphics::scr_width-1.f, -2.f*mouse.y/graphics::scr_height+1.f, 0.0f, 1.0f };
+            glm::vec4 mPos{ 2.f*mouse.x/graphics::g_scr_width-1.f, -2.f*mouse.y/graphics::g_scr_height+1.f, 0.0f, 1.0f };
             // get camera transform, use it to invert the mouse position into world coordinates
             glm::mat4 view  = glm::mat4(1.0f);
             glm::mat4 proj  = glm::mat4(1.0f);
             view = glm::lookAt(camera.pos, camera.pos + camera.front, camera.up);
-            float aspect = (float)graphics::scr_width/(float)graphics::scr_height;
+            float aspect = (float)graphics::g_scr_width/(float)graphics::g_scr_height;
             float zoom = camera.pos.z;
             proj = glm::ortho(-zoom*aspect, zoom*aspect, -zoom, zoom, 0.1f, 100.0f);
             glm::mat4 model = glm::mat4(1.0f);
@@ -389,6 +431,6 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     // Update Viewport
     glViewport(0, 0, width, height);
     // Update Screen Sizes
-    graphics::scr_width = width;
-    graphics::scr_height = height;
+    graphics::g_scr_width = width;
+    graphics::g_scr_height = height;
 }
