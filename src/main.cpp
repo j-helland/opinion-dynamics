@@ -133,7 +133,7 @@ int main(void)
             if (id1 == id2) continue;
             if (graph::has_edge(graph1, id1, id2) || graph::has_edge(graph1, id2, id1)) continue;
             //graph::add_edge(graph1, id1, id2);
-            if (dist(rng::generator)) {
+            if (dist(rng::generator)) {//
                 graph::add_edge(graph1, id1, id2);
             }
         }
@@ -142,7 +142,7 @@ int main(void)
     // theta
     float pi = 4. * atan(1.f);
     float theta = 0.0f;
-    float radius = 32.f;
+    float radius = 25.f;
     uint n = 0;
     for (const auto& [id, _] : graph1->nodes) {
         graph::Node* node = core::get_entity<graph::Node>(id);
@@ -214,23 +214,25 @@ int main(void)
         // update graph every 1 second of realtime
         if (simulating && ((uint)(g_dynamics_updates_per_second * currentTime) > currentSecond)) {
             // clear diffs
-            if(!graphics::nodeTrans.empty()) graphics::pop_node_trans();
+            //if(!graphics::nodeTrans.empty()) graphics::pop_node_trans();
+            graphics::clear_transitions();
+
+            // increment second counter
             currentSecond++;
 
             // Example Model Implementations
+            if(is_consensus_reached(graph1)) continue;
             //  Voter Model
             if (model == Model::Voter) {
                 auto edge = sample_edge(graph1);
-                auto node1 = core::get_entity<graph::Node>(edge.first);
-                auto node2 = core::get_entity<graph::Node>(edge.second);
-                bool opinion1 = node1->opinion;
-                bool opinion2 = node2->opinion;
+                auto target = core::get_entity<graph::Node>(edge.first);
+                auto neighbor = core::get_entity<graph::Node>(edge.second);
                 // if the opinions differ, then target changes its opinion to that of its selected neighbor
-                if (opinion1 != opinion2) {
+                if (target->opinion != neighbor->opinion) {
                     // accumulate diffs
-                    graphics::push_node_trans(edge.second, edge.first, opinion1);
+                    graphics::make_transition(edge, edge.first, edge.second, target->opinion, currentSecond, currentSecond+1);
                     // commit diffs
-                    node1->opinion = opinion2;
+                    target->opinion = neighbor->opinion;
                 }
             }
             //  Sznajd
@@ -240,30 +242,30 @@ int main(void)
                 auto node2 = core::get_entity<graph::Node>(edge.second);
                 bool opinion1 = node1->opinion;
                 bool opinion2 = node2->opinion;
-                if (opinion1 == opinion2) {
-                    // All neighbors take this opinion.
+                if(opinion1 == opinion2) {
                     for (auto id : graph1->nodes.at(edge.first)) {
                         auto neighbor = core::get_entity<graph::Node>(id);
                         // accumulate diffs
-                        graphics::push_node_trans(edge.first, id, neighbor->opinion);
+                        //graphics::push_node_trans(edge.first, id, neighbor->opinion);
+                        graphics::make_transition(graph::edge_t(edge.first, id), id, edge.first, neighbor->opinion, currentSecond, currentSecond+1);
                         // commit diffs
                         neighbor->opinion = opinion1;
                     }
                     for (auto id : graph1->nodes.at(edge.second)) {
                         auto neighbor = core::get_entity<graph::Node>(id);
                         // accumulate diffs
-                        graphics::push_node_trans(edge.second, id, neighbor->opinion);
+                        //graphics::push_node_trans(edge.second, id, neighbor->opinion);
+                        graphics::make_transition(graph::edge_t(edge.second, id), id, edge.second, neighbor->opinion, currentSecond, currentSecond+1);
                         // commit diffs
-                        neighbor->opinion = opinion1;
+                        neighbor->opinion = opinion2;
                     }
-                }
-                else {
-                    // Neighbors take corresponding opinions.
+                } else {
                     for (auto id : graph1->nodes.at(edge.first)) {
                         if (id == edge.second) continue;
                         auto neighbor = core::get_entity<graph::Node>(id);
                         // accumulate diffs
-                        graphics::push_node_trans(edge.first, id, neighbor->opinion);
+                        //graphics::push_node_trans(edge.first, id, neighbor->opinion);
+                        graphics::make_transition(graph::edge_t(edge.first, id), id, edge.first, neighbor->opinion, currentSecond, currentSecond+1);
                         // commit diffs
                         neighbor->opinion = opinion1;
                     }
@@ -271,7 +273,8 @@ int main(void)
                         if (id == edge.first) continue;
                         auto neighbor = core::get_entity<graph::Node>(id);
                         // accumulate diffs
-                        graphics::push_node_trans(edge.second, id, neighbor->opinion);
+                        //graphics::push_node_trans(edge.second, id, neighbor->opinion);
+                        graphics::make_transition(graph::edge_t(edge.second, id), id, edge.second, neighbor->opinion, currentSecond, currentSecond+1);
                         // commit diffs
                         neighbor->opinion = opinion2;
                     }
@@ -424,6 +427,15 @@ void devmode_toggle(GLFWwindow* window, int key, int scancode, int action, int m
     // pause / play simulation
     if(key == GLFW_KEY_P && action == GLFW_PRESS)
         simulating = !simulating;
+    // increase/decrease simulation update rate
+    // NOTE: (jllusty) should put this number in the printout for devmode
+    // BUG: If ups is updated during a transition, it will stroke out.
+    if(key == GLFW_KEY_UP && action == GLFW_PRESS)
+        g_dynamics_updates_per_second++;
+        // ups++;
+    if(key == GLFW_KEY_DOWN && action == GLFW_PRESS)
+        g_dynamics_updates_per_second--;
+        // ups--;
 }
 
 // window resizing
