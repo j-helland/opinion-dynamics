@@ -65,6 +65,7 @@ Mouse mouse;
 // Runtime Diagnostics / Devmode
 // NOTE (jllusty): This should turn into a diagnostic struct of info to extern to the renderer.
 bool devmode{ false };
+bool testmode{ false };
 float fps{ 0.f };
 
 // NOTE (jllusty): This is fine for now, but really needs to be moved lmao
@@ -142,7 +143,7 @@ int main(void)
     // theta
     float pi = 4. * atan(1.f);
     float theta = 0.0f;
-    float radius = 25.f;
+    float radius = 20.f;
     uint n = 0;
     for (const auto& [id, _] : graph1->nodes) {
         graph::Node* node = core::get_entity<graph::Node>(id);
@@ -168,6 +169,10 @@ int main(void)
     graphics::create_shader("../../src/media/shaders/font/vertex.glsl", 
                             "../../src/media/shaders/font/frag.glsl", 
                             &graphics::shaderText);
+    //  Test Shader
+    graphics::create_shader("../../src/media/shaders/test/vertex.glsl",
+                            "../../src/media/shaders/test/frag.glsl",
+                            &graphics::shaderTest);
     // Load Vertex Data (for Quad)
     graphics::load_buffers();
     // Load Texture Data
@@ -424,6 +429,9 @@ void devmode_toggle(GLFWwindow* window, int key, int scancode, int action, int m
     // enable devmode output
     if(key == GLFW_KEY_F1 && action == GLFW_PRESS)
         devmode = !devmode;
+    // enable test rendering
+    if(key == GLFW_KEY_F2 && action == GLFW_PRESS)
+        testmode = !testmode;
     // pause / play simulation
     if(key == GLFW_KEY_P && action == GLFW_PRESS)
         simulating = !simulating;

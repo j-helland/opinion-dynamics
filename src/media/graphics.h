@@ -23,6 +23,7 @@ extern Camera camera;
 
 // FPS reading
 extern bool devmode;
+extern bool testmode;
 extern float fps;
 
 // Updates per second
@@ -62,6 +63,7 @@ namespace graphics {
     // ShaderProgram
     GLuint shaderGraph;    // Shader Program for Drawing Graph
     GLuint shaderText;     // Shader Program for Drawing On-Screen Text
+    GLuint shaderTest;
 
     // Buffer Objects
     GLuint VBO, VAO, EBO;
@@ -79,6 +81,7 @@ namespace graphics {
         float start_time;
         float end_time;
     };
+    // NOTE: (jllusty) Uses graph::edge_hash, and may change.
     std::unordered_map<graph::edge_t, live_edge*, graph::edge_hash> liveEdges {};
     struct live_node {
         bool opinion;
@@ -175,6 +178,11 @@ namespace graphics {
         // Enable Blending
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        // Enable Depth-Testing
+        //glEnable(GL_DEPTH_TEST);
+        //glEnable(GL_LESS);
+
     }
     // Cleanup
     void cleanup(void) {
@@ -318,7 +326,17 @@ namespace graphics {
     void render(void) {
         /* Render here */
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT /*| GL_DEPTH_BUFFER_BIT*/);
+
+        if(testmode) {
+            glUseProgram(shaderTest);
+            glBindVertexArray(VAO);
+
+            GLuint camLoc = glGetUniformLocation(shaderTest, "cameraPos");
+            glUniform3fv(camLoc, 1, glm::value_ptr(camera.pos));
+            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+            return;
+        }
 
         // bind textures to texture units
         glActiveTexture(GL_TEXTURE0);
