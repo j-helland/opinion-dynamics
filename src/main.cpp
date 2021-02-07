@@ -20,6 +20,7 @@
 #include "camera.h"
 // From voter_model_test.cpp
 #include "types.h"
+#include "utils.h"
 #include "data_structures/graph.h"
 #include "core/entity_manager.h"
 // #include "models/voter_model.h"
@@ -90,8 +91,8 @@ void devmode_toggle(GLFWwindow* window, int key, int scancode, int action, int m
 // We need a way to conveniently update parameter values using the variable name to match w/ JSON field.
 #define VAR_NAME(var) (#var)
 // Normally this should just be an inline function, but we need to have the `VAR_NAME` macro capture the exterior variable name, not the inline function argument name.
-#define LOAD_PARAM(cfg_sec, type, var) \
-    core::load_param<type>( var, VAR_NAME(var), &core::GLOBAL_CONFIG[cfg_sec] )
+#define LOAD_PARAM(cfg_sec, var) \
+    core::load_param( var, VAR_NAME(var), &core::GLOBAL_CONFIG[cfg_sec] )
 
 // I'm just implementing this up top because it's more convenient to see it here rather than after `main`.
 // TODO: This is probably going to get annoying to maintain. Is there a better way?
@@ -103,18 +104,19 @@ void load_global_parameters() {
     //       This includes the namespace e.g. graphics::g_scr_width requires a JSON field named 
     //       "graphics::g_scr_width".
     // NOTE: All parameters must be contained within a nested JSON field. 
-    assert( LOAD_PARAM( "rendering", uint,    g_fps_cap ) );
-    assert( LOAD_PARAM( "rendering", float,   g_frame_delta_correction ) );
-    assert( LOAD_PARAM( "rendering", GLsizei, graphics::g_scr_width ) );
-    assert( LOAD_PARAM( "rendering", GLsizei, graphics::g_scr_height ) );
+    assert( LOAD_PARAM( "rendering", g_fps_cap ) );
+    assert( LOAD_PARAM( "rendering", g_frame_delta_correction ) );
+    assert( LOAD_PARAM( "rendering", graphics::g_scr_width ) );
+    assert( LOAD_PARAM( "rendering", graphics::g_scr_height ) );
 
-    assert( LOAD_PARAM( "simulation", uint, g_dynamics_updates_per_second ) );
-    assert( LOAD_PARAM( "simulation", uint, g_graph_test_size ) );
+    assert( LOAD_PARAM( "simulation", g_dynamics_updates_per_second ) );
+    assert( LOAD_PARAM( "simulation", g_graph_test_size ) );
 }
 
 //================================================== 
 // Main
 //==================================================
+#include <iostream>
 int main(void)
 {
     // This always be the first thing that happens in the program.
@@ -156,7 +158,7 @@ int main(void)
         //node->y = (500-(float)(rand() % 1000))/1000.f * radius;
         n++;
     }
-
+    
     /* Initialize Graphics */
     graphics::init();
     // Set Callbacks 
@@ -334,22 +336,42 @@ void processInput(GLFWwindow *window) {
     float speed = 20.f * deltaTime;
     if(testmode) speed = 5.f * deltaTime;
     // pan
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        camera.pos.y += speed;
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        camera.pos.x -= speed;
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        camera.pos.y -= speed;
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        camera.pos.x += speed;
-    // zoom
-    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
-        camera.pos.z -= speed;
-    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
-        camera.pos.z += speed;
-    // Reload global parameters from config file
-    if (glfwGetKey(window, GLFW_KEY_F5) == GLFW_PRESS)
-        load_global_parameters();
+    if ( glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS ) {
+        // Save the graph.
+        if ( glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS ) {
+            graph::save_graph(graph1, "../../data/graph.json");
+        }
+        // Load the most recently saved graph.
+        if ( glfwGetKey(window, GLFW_KEY_L) == GLFW_PRESS ) {
+            char* file_path = "../../data/graph.json";
+            // Need to check this (which is redundant wrt internal check by load_graph)
+            // because we want to avoid destroying the graph.
+            if ( utils::is_file(file_path) ) {
+                graph::destroy(graph1);
+                core::clear_all_entities();
+                graph1 = new graph::Graph;
+                graph::load_graph(graph1, file_path);
+            }
+        }
+    } else {
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+            camera.pos.y += speed;
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+            camera.pos.x -= speed;
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+            camera.pos.y -= speed;
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+            camera.pos.x += speed;
+        // zoom
+        if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
+            camera.pos.z -= speed;
+        if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
+            camera.pos.z += speed;
+        // Reload global parameters from config file
+        if ( glfwGetKey(window, GLFW_KEY_F5) == GLFW_PRESS ) {
+            load_global_parameters();
+        }
+    }
 
     // check if we touchy-touched a node with a mouse clicky-click
     // update cursor position anyway
