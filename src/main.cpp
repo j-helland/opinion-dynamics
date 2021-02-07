@@ -90,8 +90,8 @@ void devmode_toggle(GLFWwindow* window, int key, int scancode, int action, int m
 // We need a way to conveniently update parameter values using the variable name to match w/ JSON field.
 #define VAR_NAME(var) (#var)
 // Normally this should just be an inline function, but we need to have the `VAR_NAME` macro capture the exterior variable name, not the inline function argument name.
-#define LOAD_PARAM(cfg_sec, type, var) \
-    core::load_param<type>( var, VAR_NAME(var), &core::GLOBAL_CONFIG[cfg_sec] )
+#define LOAD_PARAM(cfg_sec, var) \
+    core::load_param( var, VAR_NAME(var), &core::GLOBAL_CONFIG[cfg_sec] )
 
 // I'm just implementing this up top because it's more convenient to see it here rather than after `main`.
 // TODO: This is probably going to get annoying to maintain. Is there a better way?
@@ -103,13 +103,13 @@ void load_global_parameters() {
     //       This includes the namespace e.g. graphics::g_scr_width requires a JSON field named 
     //       "graphics::g_scr_width".
     // NOTE: All parameters must be contained within a nested JSON field. 
-    assert( LOAD_PARAM( "rendering", uint,    g_fps_cap ) );
-    assert( LOAD_PARAM( "rendering", float,   g_frame_delta_correction ) );
-    assert( LOAD_PARAM( "rendering", GLsizei, graphics::g_scr_width ) );
-    assert( LOAD_PARAM( "rendering", GLsizei, graphics::g_scr_height ) );
+    assert( LOAD_PARAM( "rendering", g_fps_cap ) );
+    assert( LOAD_PARAM( "rendering", g_frame_delta_correction ) );
+    assert( LOAD_PARAM( "rendering", graphics::g_scr_width ) );
+    assert( LOAD_PARAM( "rendering", graphics::g_scr_height ) );
 
-    assert( LOAD_PARAM( "simulation", uint, g_dynamics_updates_per_second ) );
-    assert( LOAD_PARAM( "simulation", uint, g_graph_test_size ) );
+    assert( LOAD_PARAM( "simulation", g_dynamics_updates_per_second ) );
+    assert( LOAD_PARAM( "simulation", g_graph_test_size ) );
 }
 
 //================================================== 

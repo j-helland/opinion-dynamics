@@ -114,6 +114,7 @@ namespace graph {
         graph->edges.insert(std::make_pair(u, v));
     }
 
+    // Return the outgoing edges from a node.
     std::vector<edge_t> get_edges_at_node(const Graph* graph, core::id_t node) {
         assert( has_node(graph, node) );
         std::vector<edge_t> edges( graph->nodes.at(node).size() );
