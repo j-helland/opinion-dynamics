@@ -19,7 +19,7 @@ namespace core {
         ifs.close();
     }
 
-    void init_global_config(char* config_path = "../../configs/config.json") {
+    void init_global_config(char* config_path = "../../data/configs/config.json") {
         load_config(GLOBAL_CONFIG, config_path);
     }
 

@@ -13,11 +13,18 @@ TODO: graph is almost certainly not memory-efficient. Try to allocate contiguous
 #include <unordered_set>
 #include <tuple>
 #include <vector>
+#include <fstream>
+#include <iomanip>
+
+#include "nlohmann/json.hpp"
 
 #include "../types.h"
+#include "../utils.h"
 #include "../core/entity_manager.h"
 
 namespace graph {
+    using json = nlohmann::json;
+
     //// Types
     typedef struct graph Graph;
     typedef struct node Node;
@@ -42,12 +49,19 @@ namespace graph {
     };
 
     // Allocate memory for a node and its properties, then register the node in the global entities pool and return its generated id.
-    core::id_t create_node(void) {
+    core::id_t create_node(const core::id_t* _id = nullptr) {
         Node* node = (Node*) malloc(sizeof(Node));
         assert(node);
 
-        core::id_t id = core::register_entity(node);
+        core::id_t id = core::register_entity(node, _id);
         return id;
+    }
+
+    bool add_node(Graph* graph, core::id_t id) {
+        if ( graph->nodes.find(id) != graph->nodes.end() ) 
+            return false;
+        graph->nodes[id] = std::unordered_set<core::id_t>{};
+        return true;
     }
 
     // Create a graph with num_nodes vertices, no edges.
@@ -57,11 +71,12 @@ namespace graph {
 
         graph->nodes.reserve(num_nodes);
         for (uint i = 0; i < num_nodes; ++i) {
+            // Create and register.
             auto id = create_node();
-            graph->nodes[id] = std::unordered_set<core::id_t>{};
-            Node* node = core::get_entity<Node>(id);
-            assert( node );
+            assert( add_node(graph, id) );
 
+            // Initialize properties of node.
+            Node* node = core::get_entity<Node>(id);
             node->x = node->y = 0.f;
             node->opinion = 0;
         }
@@ -122,6 +137,67 @@ namespace graph {
             edges.push_back( std::make_pair(node, neighbor) );
         }
         return edges; // NOTE: >=c++11 has automatic move semantics for vector return
+    }
+
+    void serialize_graph(const Graph* graph, json& graph_serialized) {
+        // Add the nodes
+        for (const auto& [id, _] : graph->nodes) {
+            auto node = core::get_entity<Node>(id);
+            // TODO: This is a very brittle serialization -- is there a better way?
+            graph_serialized["nodes"][ std::to_string(id) ] = { 
+                { "x", node->x }, 
+                { "y", node->y }, 
+                { "opinion", node->opinion } 
+            };
+        }
+        uint n = 0;
+        for (const edge_t& edge : graph->edges) {
+            graph_serialized["edges"][ std::to_string(n) ] = { edge.first, edge.second };
+            n++;
+        }
+    }
+
+    void deserialize_graph(Graph* graph, json& graph_serialized) {
+        for (const auto& [s_id, properties] : graph_serialized["nodes"].items()) {
+            // Create and add a new node with loaded properties
+            core::id_t id = std::stoul(s_id);
+            create_node(&id);
+            add_node(graph, id);
+            Node* node = core::get_entity<Node>(id);
+            assert( node );
+
+            // TODO: This is brittle -- is there a better way?
+            node->x = properties["x"];
+            node->y = properties["y"];
+            node->opinion = properties["opinion"];
+        }
+        for (const auto& edge : graph_serialized["edges"]) {
+            add_edge(graph, edge[0], edge[1]);
+        }
+    }
+
+    // Serialize a Graph struct to JSON and save it to a file.
+    void save_graph(const Graph* graph, char* file_path) {
+        json graph_serialized;
+        serialize_graph(graph, graph_serialized);
+
+        // prettified JSON output
+        std::ofstream o(file_path);
+        assert( o.good() );
+        o << std::setw(4) << graph_serialized << std::endl;
+    }
+
+    // Load a JSON serialized graph from a file and deserialize it to a Graph struct.
+    // WARNING: Make sure that this is a newly allocated Graph struct.
+    // WARNING: Make sure that the entity manager has been appropriately cleared before running this by calling core::clear_all_entities.
+    bool load_graph(Graph* graph, char* file_path) {
+        json graph_serialized;
+        std::ifstream f(file_path);
+        if ( ! f.good() ) return false;
+        f >> graph_serialized;
+
+        deserialize_graph(graph, graph_serialized);
+        return true;
     }
 
 } // end namespace

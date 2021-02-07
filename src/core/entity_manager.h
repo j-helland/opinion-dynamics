@@ -39,8 +39,8 @@ namespace core {
 
     // Generate an id for the entity, add it to the hashtable, and return the new id.
     template<typename P>
-    id_t register_entity(const P* entity) {
-        id_t id = generate_new_id();
+    id_t register_entity(const P* entity, const id_t* _id = nullptr) {
+        id_t id = ( _id == nullptr ) ? generate_new_id() : *_id;
         g_entity_id_map[id] = (void*) entity;
         return id;
     }

@@ -85,6 +85,7 @@ int graph_test(void) {
 
     // free the graph
     graph::destroy(graph);
+    core::clear_all_entities();
 
     return 0;
 }

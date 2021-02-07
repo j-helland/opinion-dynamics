@@ -20,6 +20,7 @@
 #include "camera.h"
 // From voter_model_test.cpp
 #include "types.h"
+#include "utils.h"
 #include "data_structures/graph.h"
 #include "core/entity_manager.h"
 // #include "models/voter_model.h"
@@ -115,6 +116,7 @@ void load_global_parameters() {
 //================================================== 
 // Main
 //==================================================
+#include <iostream>
 int main(void)
 {
     // This always be the first thing that happens in the program.
@@ -331,22 +333,42 @@ int main(void)
 void processInput(GLFWwindow *window) {
     const float speed = 20.f * deltaTime;
     // pan
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        camera.pos.y += speed;
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        camera.pos.x -= speed;
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        camera.pos.y -= speed;
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        camera.pos.x += speed;
-    // zoom
-    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
-        camera.pos.z -= speed;
-    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
-        camera.pos.z += speed;
-    // Reload global parameters from config file
-    if (glfwGetKey(window, GLFW_KEY_F5) == GLFW_PRESS)
-        load_global_parameters();
+    if ( glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS ) {
+        // Save the graph.
+        if ( glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS ) {
+            graph::save_graph(graph1, "../../data/graph.json");
+        }
+        // Load the most recently saved graph.
+        if ( glfwGetKey(window, GLFW_KEY_L) == GLFW_PRESS ) {
+            char* file_path = "../../data/graph.json";
+            // Need to check this (which is redundant wrt internal check by load_graph)
+            // because we want to avoid destroying the graph.
+            if ( utils::is_file(file_path) ) {
+                graph::destroy(graph1);
+                core::clear_all_entities();
+                graph1 = new graph::Graph;
+                graph::load_graph(graph1, file_path);
+            }
+        }
+    } else {
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+            camera.pos.y += speed;
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+            camera.pos.x -= speed;
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+            camera.pos.y -= speed;
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+            camera.pos.x += speed;
+        // zoom
+        if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
+            camera.pos.z -= speed;
+        if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
+            camera.pos.z += speed;
+        // Reload global parameters from config file
+        if ( glfwGetKey(window, GLFW_KEY_F5) == GLFW_PRESS ) {
+            load_global_parameters();
+        }
+    }
 
     // check if we touchy-touched a node with a mouse clicky-click
     // update cursor position anyway

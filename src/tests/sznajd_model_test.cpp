@@ -33,6 +33,9 @@ int sznajd_model_test(void) {
     // auto n2 = core::get_entity<graph::Node>(edge.second);
     // assert( n1->opinion == n2->opinion );
 
+    graph::destroy(graph);
+    core::clear_all_entities();
+
     return 0;
 }
 
