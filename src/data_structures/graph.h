@@ -114,6 +114,15 @@ namespace graph {
         graph->edges.insert(std::make_pair(u, v));
     }
 
+    std::vector<edge_t> get_edges_at_node(const Graph* graph, core::id_t node) {
+        assert( has_node(graph, node) );
+        std::vector<edge_t> edges( graph->nodes.at(node).size() );
+        for ( core::id_t neighbor : graph->nodes.at(node) ) {
+            edges.push_back( std::make_pair(node, neighbor) );
+        }
+        return edges; // NOTE: >=c++11 has automatic move semantics for vector return
+    }
+
 } // end namespace
 
 

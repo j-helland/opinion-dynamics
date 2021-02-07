@@ -153,7 +153,7 @@ int main(void)
         //node->y = (500-(float)(rand() % 1000))/1000.f * radius;
         n++;
     }
-
+    
     /* Initialize Graphics */
     graphics::init();
     // Set Callbacks 
