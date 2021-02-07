@@ -7,6 +7,6 @@
     },
     "simulation": {
         "g_dynamics_updates_per_second": 1,
-        "g_graph_test_size": 64
+        "g_graph_test_size": 1024
     }
 }
