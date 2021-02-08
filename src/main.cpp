@@ -68,7 +68,7 @@ Mouse mouse;
 // Runtime Diagnostics / Devmode
 // NOTE (jllusty): This should turn into a diagnostic struct of info to extern to the renderer.
 bool devmode{ false };
-bool testmode{ false };
+bool testmode{ false }; // if you want to use this go turn it back on in the toggles
 float fps{ 0.f };
 
 // NOTE (jllusty): This is fine for now, but really needs to be moved lmao
@@ -148,13 +148,15 @@ int main(void)
     // theta
     float pi = 4. * atan(1.f);
     float theta = 0.0f;
-    float radius = 20.f;
+    float radius = 16.f;
     uint n = 0;
     for (const auto& [id, _] : graph1->nodes) {
         graph::Node* node = core::get_entity<graph::Node>(id);
         theta = (float)n * 2.0f * pi / (float)(graph1->nodes.size());
         node->x = radius*cos(theta);
         node->y = radius*sin(theta);
+        //node->x = radius*floor((float)n - 32.f*floor((float)n/32.f));
+        //node->y = radius*floor((float)n/32.f - 32.f* floor(((float)n/32.f)/32.f));
         //node->x = (500-(float)(rand() % 1000))/1000.f * radius;
         //node->y = (500-(float)(rand() % 1000))/1000.f * radius;
         n++;
@@ -334,7 +336,8 @@ int main(void)
 //==================================================
 // continuous input
 void processInput(GLFWwindow *window) {
-    const float speed = 20.f * deltaTime;
+    float speed = 20.f * deltaTime;
+    if(testmode) speed = 5.f * deltaTime;
     // pan
     if ( glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS ) {
         // Save the graph.
@@ -455,8 +458,8 @@ void devmode_toggle(GLFWwindow* window, int key, int scancode, int action, int m
     if(key == GLFW_KEY_F1 && action == GLFW_PRESS)
         devmode = !devmode;
     // enable test rendering
-    if(key == GLFW_KEY_F2 && action == GLFW_PRESS)
-        testmode = !testmode;
+    //if(key == GLFW_KEY_F2 && action == GLFW_PRESS)
+    //    testmode = !testmode;
     // pause / play simulation
     if(key == GLFW_KEY_P && action == GLFW_PRESS)
         simulating = !simulating;

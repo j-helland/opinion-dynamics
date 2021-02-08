@@ -66,29 +66,37 @@ namespace graphics {
     GLuint shaderTest;
 
     // Buffer Objects
-    GLuint VBO, VAO, EBO;
+    GLuint VBO, VAO, EBO, instanceVBO;
     
     // Textures
     GLuint textureNode;    // Node
     GLuint textureEdge;    // Edge
     GLuint textureFont;    // Font Bitmap
 
+    // Temporary Location of Instance Data
+    glm::vec2 translations[100];
+
     // Edge and Node transition structures
-    // NOTE: (jllusty) I have no idea what I am doing.jpg
+    //  live_edge transition structure, stores any "animation" state needed
+    //  to render a pulse starting at start_node and ending at end_node
     struct live_edge {
         core::id_t start_node;
         core::id_t end_node;
         float start_time;
         float end_time;
     };
-    // NOTE: (jllusty) Uses graph::edge_hash, and may change.
     std::unordered_map<graph::edge_t, live_edge*, graph::edge_hash> liveEdges {};
+    //  live_node transition structure, stores any "animation" state needed
+    //  to render a node with a persistent opinion different from what was
+    //  updated in the actual graph
     struct live_node {
         bool opinion;
         float start_time;
         float end_time;
     };
     std::unordered_map<core::id_t, live_node*> liveNodes {};
+
+    // creates a transition
     void make_transition(graph::edge_t edge, core::id_t node_to, core::id_t node_from, bool old_opinion, double start_time, double end_time) {
         liveEdges[edge] = new live_edge;
             liveEdges[edge]->start_node = node_from;
@@ -100,6 +108,7 @@ namespace graphics {
             liveNodes[node_to]->start_time = start_time;
             liveNodes[node_to]->end_time = end_time;
     }
+    // clears transitions
     void clear_transitions(void) {
         auto it1 = liveEdges.begin();
         while(it1 != liveEdges.end()) {
@@ -188,6 +197,7 @@ namespace graphics {
     void cleanup(void) {
         glDeleteProgram(shaderGraph);
         glDeleteProgram(shaderText);
+        glDeleteProgram(shaderTest);
 
         /* GLFW: clean-up */
         glfwTerminate();
@@ -241,10 +251,16 @@ namespace graphics {
     // Load Buffers with Vertex Data
     void load_buffers(void) {
         /* Setup Vertex Data and Buffers */
-        // node position
-        float node_x{ 0.0f }, node_y{ 0.0f };
-        // node radius
-        float node_r{ 1.f };
+        //int index = 0;
+        //for (const auto& [id, _] : graph1->nodes) {
+            //auto node = core::get_entity<graph::Node>(id);
+            //translations[index++] = glm::vec2(node->x, node->y);
+        //}
+        //glGenBuffers(1, &instanceVBO);
+        //glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+        //glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec2) * 100, &translations[0], GL_STATIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+
         // vertex data
         GLfloat vertices[] = {
             // positions         // colors          // texture coords
@@ -281,7 +297,13 @@ namespace graphics {
         // texture coord attribute
         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (void*)(6 * sizeof(GLfloat)));
         glEnableVertexAttribArray(2);
+        // set instance data
+        //glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+        //glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+        //glBindBuffer(GL_ARRAY_BUFFER, 0);
+        //glVertexAttribDivisor(2, 1);
     }
+
     // Destroy buffer objects
     void destroy_buffers(void) {
         glDeleteVertexArrays(1, &VAO);
@@ -328,13 +350,38 @@ namespace graphics {
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT /*| GL_DEPTH_BUFFER_BIT*/);
 
+        // Testmode using Instanced Rendering
         if(testmode) {
             glUseProgram(shaderTest);
             glBindVertexArray(VAO);
-
+            // Defer these updates in case they change?
+            // Screen
+            GLuint screenLoc = glGetUniformLocation(shaderTest, "resolution");
+            glm::vec2 resolution{ g_scr_width, g_scr_height };
+            glUniform2fv(screenLoc, 1, glm::value_ptr(resolution));
+            // Camera
             GLuint camLoc = glGetUniformLocation(shaderTest, "cameraPos");
             glUniform3fv(camLoc, 1, glm::value_ptr(camera.pos));
-            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+            // Circle Position
+            //GLuint cPosLoc = glGetUniformLocation(shaderTest, "circlePos");
+            //glm::vec2 circlePos{ 0.f, 0.f };
+            //glUniform2fv(cPosLoc, 1, glm::value_ptr(circlePos));
+            // Circle Radius
+            //GLuint cRadiusLoc = glGetUniformLocation(shaderTest, "circleRadius");
+            //const float pi = 4.0f * atan(1.0f);
+            //float circleRadius = 0.25f;
+            //glUniform1f(cRadiusLoc, circleRadius);
+            // Circle Border Width
+            //GLuint cBorderLoc = glGetUniformLocation(shaderTest, "borderWidth");
+            //float borderWidth = 0.05f;
+            //glUniform1f(cBorderLoc, borderWidth);
+            // Circle Color
+            //GLuint cColorLoc = glGetUniformLocation(shaderTest, "circleColor");
+            //glm::vec3 circleColor{ 0.25f, 0.f, 0.f};
+            //glUniform3fv(cColorLoc, 1, glm::value_ptr(circleColor));
+            // Draw
+            glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0, 100);
+            glBindVertexArray(0);
             return;
         }
 
@@ -397,14 +444,41 @@ namespace graphics {
             // assimilation pulse
             GLint pulsing;
             GLuint pulsingLoc = glGetUniformLocation(shaderGraph, "pulsing");
-            if (liveEdges[edge]) {
+            pulsing = 0;
+            glUniform1i(pulsingLoc, pulsing);
+            // draw edge
+            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        }
+        // Live nodes
+        auto it1 = liveEdges.begin();
+        while(it1 != liveEdges.end()) {
+            if (it1->second) {
+                auto node1 = core::get_entity<graph::Node>(it1->second->start_node);
+                auto node2 = core::get_entity<graph::Node>(it1->second->end_node);
+                float x1 = node1->x;
+                float y1 = node1->y;
+                float x2 = node2->x;
+                float y2 = node2->y;
+                float dist = sqrt((x2-x1)*(x2-x1) + (y2-y1)*(y2-y1));
+                // set model matrix
+                glm::mat4 model = glm::mat4(1.0f);
+                glm::vec3 edgePosition{ (x1+x2)/2.f, (y1+y2)/2.f, 0.f };
+                float theta = atan2((y2-y1),(x2-x1));
+                model = glm::translate(model, edgePosition);
+                model = glm::rotate(model, theta, glm::vec3(0.f,0.f,1.f));
+                model = glm::scale(model, glm::vec3(dist/2.f, 1.f, 1.f));
+                GLuint modelLoc = glGetUniformLocation(shaderGraph, "model");
+                glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+                // assimilation pulse
+                GLint pulsing;
+                GLuint pulsingLoc = glGetUniformLocation(shaderGraph, "pulsing");
                 pulsing = 1;
                 glUniform1i(pulsingLoc, pulsing);
                 // pulse color
                 GLuint pulseColorLoc = glGetUniformLocation(shaderGraph, "pulseColor");
                 glm::vec3 green{ 0.0f, 1.0f, 0.0f };
                 glm::vec3 red{ 1.0f, 0.0f, 0.0f };
-                glm::vec3 pulseColor = (core::get_entity<graph::Node>(liveEdges[edge]->start_node)->opinion)?green:red;
+                glm::vec3 pulseColor = (core::get_entity<graph::Node>(it1->second->start_node)->opinion)?green:red;
                 glUniform3fv(pulseColorLoc, 1, glm::value_ptr(pulseColor));
                 // compute pulse
                 GLuint pulseLoc = glGetUniformLocation(shaderGraph, "pulse");
@@ -413,15 +487,12 @@ namespace graphics {
                         g_dynamics_updates_per_second*currentTime 
                         - floor(g_dynamics_updates_per_second*currentTime) 
                     ) - 0.1f;
-                if(liveEdges[edge]->start_node != edge.first) pulse = 1.2f - pulse;
+                //if(liveEdges[edge]->start_node != edge.first) pulse = 1.2f - pulse;
                 glUniform1f(pulseLoc, pulse);
+                // draw edge
+                glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);   
             }
-            else {
-                pulsing = 0;
-                glUniform1i(pulsingLoc, pulsing);
-            }
-            // draw edge
-            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+            it1++;
         }
 
         // Render Nodes
