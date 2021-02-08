@@ -35,6 +35,8 @@
 #include "globals.h"
 uint g_fps_cap;
 float g_frame_delta_correction; 
+
+// uint g_model;
 uint g_dynamics_updates_per_second;
 uint g_graph_test_size;
 
@@ -70,11 +72,12 @@ bool testmode{ false };
 float fps{ 0.f };
 
 // NOTE (jllusty): This is fine for now, but really needs to be moved lmao
-enum class Model {
-    Voter,
-    Sznajd
-};
-Model model{ Model::Sznajd };
+// enum class Model {
+//     Voter,
+//     Sznajd
+// };
+// Model model{ Model::Sznajd };
+Model g_model;
 
 //================================================== 
 // Forward declarations
@@ -109,6 +112,7 @@ void load_global_parameters() {
     assert( LOAD_PARAM( "rendering", graphics::g_scr_width ) );
     assert( LOAD_PARAM( "rendering", graphics::g_scr_height ) );
 
+    assert( LOAD_PARAM( "simulation", g_model ) );
     assert( LOAD_PARAM( "simulation", g_dynamics_updates_per_second ) );
     assert( LOAD_PARAM( "simulation", g_graph_test_size ) );
 }
@@ -116,7 +120,6 @@ void load_global_parameters() {
 //================================================== 
 // Main
 //==================================================
-#include <iostream>
 int main(void)
 {
     // This always be the first thing that happens in the program.
@@ -230,7 +233,7 @@ int main(void)
             // Example Model Implementations
             if(is_consensus_reached(graph1)) continue;
             //  Voter Model
-            if (model == Model::Voter) {
+            if (g_model == Model::Voter) {
                 auto edge = sample_edge(graph1);
                 auto target = core::get_entity<graph::Node>(edge.first);
                 auto neighbor = core::get_entity<graph::Node>(edge.second);
@@ -243,7 +246,7 @@ int main(void)
                 }
             }
             //  Sznajd
-            if (model == Model::Sznajd) {
+            if (g_model == Model::Sznajd) {
                 auto edge = sample_edge(graph1);
                 auto node1 = core::get_entity<graph::Node>(edge.first);
                 auto node2 = core::get_entity<graph::Node>(edge.second);

@@ -13,6 +13,7 @@ namespace graphics {
 }
 
 // Dynamics simulation
+extern Model g_model;
 extern uint g_dynamics_updates_per_second;
 extern uint g_graph_test_size;
 

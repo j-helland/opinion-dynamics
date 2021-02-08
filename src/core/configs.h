@@ -4,12 +4,9 @@
 #include <iostream>
 #include <fstream>
 
-#include "nlohmann/json.hpp"
-
+#include "../types.h"
 
 namespace core {
-    using json = nlohmann::json;
-    typedef json config;
 
     static config GLOBAL_CONFIG;
 
@@ -19,6 +16,7 @@ namespace core {
         ifs.close();
     }
 
+    // TODO: Move hardcoded file path to a constants file.
     void init_global_config(char* config_path = "../../data/configs/config.json") {
         load_config(GLOBAL_CONFIG, config_path);
     }
