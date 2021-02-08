@@ -43,7 +43,9 @@ void main()
         TexColor = texture(textureEdge, uv);
         // Assimilation Pulse
         if(pulsing == 1) {
-            TexColor.rgb = exp(-128.*pow(abs(uv.x-pulse),2.)) * pulseColor;
+            float s = exp(-128.*pow(abs(uv.x-pulse),2.));
+            // on-line
+            if(TexColor.a > 0.) TexColor.rgba = s * vec4(pulseColor, 1.);
         }
     }
     FragColor = TexColor;

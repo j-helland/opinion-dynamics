@@ -9,10 +9,10 @@ uniform vec2 resolution;
 // Camera
 uniform vec3 cameraPos;
 // Circle
-uniform vec2 circlePos;
-uniform float circleRadius;
-uniform vec3 circleColor;
-uniform float borderWidth;
+// uniform vec2 circlePos;
+const float circleRadius = 0.25;
+const vec3 circleColor = vec3(0.25, 0., 0.);
+const float borderWidth = 0.05;
 
 void main()
 {
