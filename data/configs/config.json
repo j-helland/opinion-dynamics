@@ -6,6 +6,7 @@
         "graphics::g_scr_height": 480
     },
     "simulation": {
+        "g_model": 1,
         "g_dynamics_updates_per_second": 1,
         "g_graph_test_size": 100
     }

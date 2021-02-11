@@ -10,9 +10,6 @@
 
 namespace core {
 
-    // placeholder in case we change the type of ids at some point
-    typedef uint id_t;
-
     // Is this just OOP ideology under a facade?
     namespace {
         static id_t NEXT_ID = 0;

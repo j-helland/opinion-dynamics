@@ -5,11 +5,12 @@
 #include <stdlib.h>
 
 #include "entity_manager_test.cpp"
+#include "matrix_test.cpp"
 #include "graph_test.cpp"
 #include "graph_serialization_test.cpp"
 #include "graph_deserialization_test.cpp"
 #include "voter_model_test.cpp"
-#include "sznajd_model_test.cpp "
+#include "sznajd_model_test.cpp"
 
 void print_status(const char* name, int return_code) {
     printf("%s.cpp\t", name);
@@ -23,6 +24,7 @@ void print_status(const char* name, int return_code) {
 
 int main() {
     print_status("entity_manager_test", entity_manager_test());
+    print_status("matrix_test", matrix_test());
     print_status("graph_test", graph_test());
     print_status("graph_serialization_test", graph_serialization_test());
     print_status("graph_deserialization_test", graph_deserialization_test());  // NOTE: must be run after serialization test

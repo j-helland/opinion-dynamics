@@ -16,20 +16,11 @@ TODO: graph is almost certainly not memory-efficient. Try to allocate contiguous
 #include <fstream>
 #include <iomanip>
 
-#include "nlohmann/json.hpp"
-
 #include "../types.h"
 #include "../utils.h"
 #include "../core/entity_manager.h"
 
 namespace graph {
-    using json = nlohmann::json;
-
-    //// Types
-    typedef struct graph Graph;
-    typedef struct node Node;
-    typedef struct properties Properties;
-    typedef std::pair<core::id_t, core::id_t> edge_t;
 
     // Graph node with adjacency list.
     struct node {
