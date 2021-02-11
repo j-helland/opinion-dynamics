@@ -52,6 +52,10 @@ extern core::id_t selectedNodeID;
 #include <stack>
 #include <unordered_map>
 
+// some more rendering parameters
+float node_size{ 2.0f };
+float line_width{ 4.0f };
+
 namespace graphics {
     // GLFW window
     GLFWwindow* window{ nullptr };
@@ -84,8 +88,16 @@ namespace graphics {
         core::id_t end_node;
         float start_time;
         float end_time;
+        glm::vec3 (*color_func)(void);
     };
-    std::unordered_map<graph::edge_t, live_edge*, graph::edge_hash> liveEdges {};
+    //glm::vec3 color_const(void) {}
+    // asymmetric hash for pair of ints 
+    struct edge_hash {
+        inline std::size_t operator()(const graph::edge_t& p) const {
+            return (p.first << 16) | p.second;
+        }
+    };
+    std::unordered_map<graph::edge_t, live_edge*, edge_hash> liveEdges {};
     //  live_node transition structure, stores any "animation" state needed
     //  to render a node with a persistent opinion different from what was
     //  updated in the actual graph
@@ -95,6 +107,21 @@ namespace graphics {
         float end_time;
     };
     std::unordered_map<core::id_t, live_node*> liveNodes {};
+
+    // creates a *bounce*
+    void make_bounce(graph::edge_t edge, double start_time, double end_time) {
+        liveEdges[edge] = new live_edge;
+            liveEdges[edge]->start_node = edge.first;
+            liveEdges[edge]->end_node = edge.second;
+            liveEdges[edge]->start_time = start_time;
+            liveEdges[edge]->end_time = end_time;
+        graph::edge_t edge2 = graph::edge_t(edge.second, edge.first);
+        liveEdges[edge2] = new live_edge;
+            liveEdges[edge2]->start_node = edge.second;
+            liveEdges[edge2]->end_node = edge.first;
+            liveEdges[edge2]->start_time = start_time;
+            liveEdges[edge2]->end_time = end_time;
+    }
 
     // creates a transition
     void make_transition(graph::edge_t edge, core::id_t node_to, core::id_t node_from, bool old_opinion, double start_time, double end_time) {
@@ -166,6 +193,7 @@ namespace graphics {
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+        glfwWindowHint(GLFW_SAMPLES, 4);
 
         // Create a windowed mode window and its OpenGL context
         window = glfwCreateWindow(g_scr_width, g_scr_height, "Opinion Dynamics", NULL, NULL);
@@ -187,6 +215,9 @@ namespace graphics {
         // Enable Blending
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        // Enable Multi-Sampling
+        glEnable(GL_MULTISAMPLE);
 
         // Enable Depth-Testing
         //glEnable(GL_DEPTH_TEST);
@@ -342,6 +373,11 @@ namespace graphics {
         // glUniform1i(glGetUniformLocation(shaderGraph, "textureNode"), 0);
         // glUniform1i(glGetUniformLocation(shaderGraph, "textureEdge"), 1);
         // glUniform1i(glGetUniformLocation(shaderGraph, "textureFont"), 2);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, textureNode);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, textureEdge);
+        glBindVertexArray(VAO);
     }
 
     // Display Scene
@@ -386,10 +422,10 @@ namespace graphics {
         }
 
         // bind textures to texture units
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, textureNode);
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, textureEdge);
+        //glActiveTexture(GL_TEXTURE0);
+        //glBindTexture(GL_TEXTURE_2D, textureNode);
+        //glActiveTexture(GL_TEXTURE1);
+        //glBindTexture(GL_TEXTURE_2D, textureEdge);
         //glActiveTexture(GL_TEXTURE2);
         //glBindTexture(GL_TEXTURE_2D, textureFont);
         glUseProgram(shaderGraph);
@@ -403,7 +439,7 @@ namespace graphics {
         view = glm::lookAt(camera.pos, camera.pos + camera.front, camera.up);
         float aspect = (float)g_scr_width/(float)g_scr_height;
         float zoom = camera.pos.z;
-        proj = glm::ortho(-zoom*aspect, zoom*aspect, -zoom, zoom, 0.1f, 100.0f);
+        proj = glm::ortho(-zoom*aspect, zoom*aspect, -zoom, zoom, 0.1f, 200.0f);
         //proj = glm::perspective(glm::radians(45.0f), (float)scr_width/(float)scr_height, 0.1f, 100.f);
         // get their uniform locations
         GLuint viewLoc = glGetUniformLocation(shaderGraph, "view");
@@ -415,7 +451,7 @@ namespace graphics {
         GLuint selectLoc = glGetUniformLocation(shaderGraph, "texSelection");
 
         // bind vertices of unit quad (+/-1,+/-1)
-        glBindVertexArray(VAO);
+        //glBindVertexArray(VAO);
 
         // Render wires
         // NOTE (jllusty): Draws texture with uv.x = -1 at 
@@ -438,7 +474,7 @@ namespace graphics {
             float theta = atan2((y2-y1),(x2-x1));
             model = glm::translate(model, edgePosition);
             model = glm::rotate(model, theta, glm::vec3(0.f,0.f,1.f));
-            model = glm::scale(model, glm::vec3(dist/2.f, 1.f, 1.f));
+            model = glm::scale(model, glm::vec3(dist/2.f, line_width, 1.f));
             GLuint modelLoc = glGetUniformLocation(shaderGraph, "model");
             glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
             // assimilation pulse
@@ -446,10 +482,17 @@ namespace graphics {
             GLuint pulsingLoc = glGetUniformLocation(shaderGraph, "pulsing");
             pulsing = 0;
             glUniform1i(pulsingLoc, pulsing);
+            // selection
+            GLfloat fade = 0.15f;
+            GLuint fadeLoc = glGetUniformLocation(shaderGraph, "fade");
+            if(liveEdges[edge]) {
+                fade = 0.15f + 0.85f*glm::smoothstep(liveEdges[edge]->start_time,liveEdges[edge]->end_time,currentTime);
+            }
+            glUniform1f(fadeLoc, fade);
             // draw edge
             glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         }
-        // Live nodes
+        // Live wires
         auto it1 = liveEdges.begin();
         while(it1 != liveEdges.end()) {
             if (it1->second) {
@@ -466,7 +509,7 @@ namespace graphics {
                 float theta = atan2((y2-y1),(x2-x1));
                 model = glm::translate(model, edgePosition);
                 model = glm::rotate(model, theta, glm::vec3(0.f,0.f,1.f));
-                model = glm::scale(model, glm::vec3(dist/2.f, 1.f, 1.f));
+                model = glm::scale(model, glm::vec3(dist/2.f, line_width, 1.f));
                 GLuint modelLoc = glGetUniformLocation(shaderGraph, "model");
                 glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
                 // assimilation pulse
@@ -482,11 +525,11 @@ namespace graphics {
                 glUniform3fv(pulseColorLoc, 1, glm::value_ptr(pulseColor));
                 // compute pulse
                 GLuint pulseLoc = glGetUniformLocation(shaderGraph, "pulse");
-                float pulse = 
-                    1.2f * (
-                        g_dynamics_updates_per_second*currentTime 
-                        - floor(g_dynamics_updates_per_second*currentTime) 
-                    ) - 0.1f;
+                float pulse = -0.1f + 1.2f*(currentTime - it1->second->start_time)/(it1->second->end_time - it1->second->start_time);
+                    //1.2f * (
+                    //    g_dynamics_updates_per_second*currentTime 
+                    //    - floor(g_dynamics_updates_per_second*currentTime) 
+                    //) - 0.1f;
                 //if(liveEdges[edge]->start_node != edge.first) pulse = 1.2f - pulse;
                 glUniform1f(pulseLoc, pulse);
                 // draw edge
@@ -505,6 +548,7 @@ namespace graphics {
             glm::mat4 model = glm::mat4(1.0f);
             glm::vec3 nodePosition{ node->x, node->y, 0.0f };
             model = glm::translate(model, nodePosition);
+            model = glm::scale(model, glm::vec3(node_size, node_size, 1.0f));
             GLuint modelLoc = glGetUniformLocation(shaderGraph, "model");
             glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
             // set color

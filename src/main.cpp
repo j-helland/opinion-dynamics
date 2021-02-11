@@ -145,17 +145,17 @@ int main(void)
     // theta
     float pi = 4. * atan(1.f);
     float theta = 0.0f;
-    float radius = 16.f;
+    float radius = 160.f;
     uint n = 0;
     for (const auto& [id, _] : graph1->nodes) {
         graph::Node* node = core::get_entity<graph::Node>(id);
         theta = (float)n * 2.0f * pi / (float)(graph1->nodes.size());
-        node->x = radius*cos(theta);
-        node->y = radius*sin(theta);
+        //node->x = radius*cos(theta);
+        //node->y = radius*sin(theta);
         //node->x = radius*floor((float)n - 32.f*floor((float)n/32.f));
         //node->y = radius*floor((float)n/32.f - 32.f* floor(((float)n/32.f)/32.f));
-        //node->x = (500-(float)(rand() % 1000))/1000.f * radius;
-        //node->y = (500-(float)(rand() % 1000))/1000.f * radius;
+        node->x = (500-(float)(rand() % 1000))/1000.f * radius;
+        node->y = (500-(float)(rand() % 1000))/1000.f * radius;
         n++;
     }
     
@@ -186,7 +186,7 @@ int main(void)
     // Set Texture Data (defines texture samplers in shader program)
     // NOTE (jllusty): As the program swaps between shaders and active / bound textures,
     //                 I don't think this can be done before the render loop (unsure).
-    // graphics::set_textures();
+    graphics::set_textures();
     
     /* Initialize OpenAL */
     audio::init();
@@ -203,7 +203,6 @@ int main(void)
     while (!glfwWindowShouldClose(graphics::window))
     {
         /* Timing Calculations */
-        double start = glfwGetTime();
         // per-frame timing
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame + g_frame_delta_correction;
@@ -247,6 +246,7 @@ int main(void)
             //  Sznajd
             if (model == Model::Sznajd) {
                 auto edge = sample_edge(graph1);
+                graphics::make_bounce(edge, currentSecond, (float)currentSecond+0.5f);
                 auto node1 = core::get_entity<graph::Node>(edge.first);
                 auto node2 = core::get_entity<graph::Node>(edge.second);
                 bool opinion1 = node1->opinion;
@@ -254,17 +254,19 @@ int main(void)
                 if(opinion1 == opinion2) {
                     for (auto id : graph1->nodes.at(edge.first)) {
                         auto neighbor = core::get_entity<graph::Node>(id);
+                        if(neighbor->opinion == opinion1) continue;
                         // accumulate diffs
                         //graphics::push_node_trans(edge.first, id, neighbor->opinion);
-                        graphics::make_transition(graph::edge_t(edge.first, id), id, edge.first, neighbor->opinion, currentSecond, currentSecond+1);
+                        graphics::make_transition(graph::edge_t(edge.first, id), id, edge.first, neighbor->opinion, (float)currentSecond+0.5f, currentSecond+1);
                         // commit diffs
                         neighbor->opinion = opinion1;
                     }
                     for (auto id : graph1->nodes.at(edge.second)) {
                         auto neighbor = core::get_entity<graph::Node>(id);
+                        if(neighbor->opinion == opinion2) continue;
                         // accumulate diffs
                         //graphics::push_node_trans(edge.second, id, neighbor->opinion);
-                        graphics::make_transition(graph::edge_t(edge.second, id), id, edge.second, neighbor->opinion, currentSecond, currentSecond+1);
+                        graphics::make_transition(graph::edge_t(edge.second, id), id, edge.second, neighbor->opinion, (float)currentSecond+0.5f, currentSecond+1);
                         // commit diffs
                         neighbor->opinion = opinion2;
                     }
@@ -272,18 +274,20 @@ int main(void)
                     for (auto id : graph1->nodes.at(edge.first)) {
                         if (id == edge.second) continue;
                         auto neighbor = core::get_entity<graph::Node>(id);
+                        if(neighbor->opinion == opinion1) continue;
                         // accumulate diffs
                         //graphics::push_node_trans(edge.first, id, neighbor->opinion);
-                        graphics::make_transition(graph::edge_t(edge.first, id), id, edge.first, neighbor->opinion, currentSecond, currentSecond+1);
+                        graphics::make_transition(graph::edge_t(edge.first, id), id, edge.first, neighbor->opinion, (float)currentSecond+0.5f, currentSecond+1);
                         // commit diffs
                         neighbor->opinion = opinion1;
                     }
                     for (auto id : graph1->nodes.at(edge.second)) {
                         if (id == edge.first) continue;
                         auto neighbor = core::get_entity<graph::Node>(id);
+                        if(neighbor->opinion == opinion2) continue;
                         // accumulate diffs
                         //graphics::push_node_trans(edge.second, id, neighbor->opinion);
-                        graphics::make_transition(graph::edge_t(edge.second, id), id, edge.second, neighbor->opinion, currentSecond, currentSecond+1);
+                        graphics::make_transition(graph::edge_t(edge.second, id), id, edge.second, neighbor->opinion, (float)currentSecond+0.5f, currentSecond+1);
                         // commit diffs
                         neighbor->opinion = opinion2;
                     }
@@ -309,7 +313,7 @@ int main(void)
 
         // How long did we take?
         float spf = 1.f / ( (float) g_fps_cap );
-        double penalty = start + spf - glfwGetTime();
+        double penalty = currentFrame + spf - glfwGetTime();
         // Stop! You violated the law.
         std::this_thread::sleep_for(std::chrono::duration<double>(penalty));
     }
@@ -388,7 +392,7 @@ void processInput(GLFWwindow *window) {
             view = glm::lookAt(camera.pos, camera.pos + camera.front, camera.up);
             float aspect = (float)graphics::g_scr_width/(float)graphics::g_scr_height;
             float zoom = camera.pos.z;
-            proj = glm::ortho(-zoom*aspect, zoom*aspect, -zoom, zoom, 0.1f, 100.0f);
+            proj = glm::ortho(-zoom*aspect, zoom*aspect, -zoom, zoom, 0.1f, 200.0f);
             // for (uint n = 0; n < graph1->nodes.size(); ++n) {
             for (const auto& [id, _] : graph1->nodes) {
                 graph::Node* node = core::get_entity<graph::Node>(id);
