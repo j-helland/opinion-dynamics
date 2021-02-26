@@ -28,6 +28,7 @@
 #include "dynamics/utils.h"
 #include "random.h"
 #include "core/configs.h"
+#include "algorithms/generate_graph.h"
 
 //================================================== 
 // Globals
@@ -39,6 +40,7 @@ float g_frame_delta_correction;
 // uint g_model;
 uint g_dynamics_updates_per_second;
 uint g_graph_test_size;
+float g_graph_connectivity;
 
 // timing
 float currentTime{ 0.f };
@@ -115,6 +117,7 @@ void load_global_parameters() {
     assert( LOAD_PARAM( "simulation", g_model ) );
     assert( LOAD_PARAM( "simulation", g_dynamics_updates_per_second ) );
     assert( LOAD_PARAM( "simulation", g_graph_test_size ) );
+    assert( LOAD_PARAM( "simulation", g_graph_connectivity ) );
 }
 
 //================================================== 
@@ -129,38 +132,39 @@ int main(void)
     // Make a Graph
     // NOTE (jllusty): need a "filter" after making graphs to remove edges that are double counted if
     //                 we are assuming a non-directed graph
-    graph1 = new graph::Graph;
-    graph1 = graph::make(graph1, g_graph_test_size);  // undirected graph
-    init_graph_opinions(graph1);  // uniform-random opinions
-    // add edges
-    std::bernoulli_distribution dist(0.1f);
-    for (const auto& [id1, _] : graph1->nodes) {
-        for (const auto& [id2, _] : graph1->nodes) {
-            if (id1 == id2) continue;
-            if (graph::has_edge(graph1, id1, id2) || graph::has_edge(graph1, id2, id1)) continue;
-            //graph::add_edge(graph1, id1, id2);
-            if (dist(rng::generator)) {//
-                graph::add_edge(graph1, id1, id2);
-            }
-        }
-    }
-    // move 'em around
-    // theta
-    float pi = 4. * atan(1.f);
-    float theta = 0.0f;
-    float radius = 160.f;
-    uint n = 0;
-    for (const auto& [id, _] : graph1->nodes) {
-        graph::Node* node = core::get_entity<graph::Node>(id);
-        theta = (float)n * 2.0f * pi / (float)(graph1->nodes.size());
-        //node->x = radius*cos(theta);
-        //node->y = radius*sin(theta);
-        //node->x = radius*floor((float)n - 32.f*floor((float)n/32.f));
-        //node->y = radius*floor((float)n/32.f - 32.f* floor(((float)n/32.f)/32.f));
-        node->x = (500-(float)(rand() % 1000))/1000.f * radius;
-        node->y = (500-(float)(rand() % 1000))/1000.f * radius;
-        n++;
-    }
+    // graph1 = new graph::Graph;
+    // graph1 = graph::make(graph1, g_graph_test_size);  // undirected graph
+    // init_graph_opinions(graph1);  // uniform-random opinions
+    // // add edges
+    // std::bernoulli_distribution dist(0.1f);
+    // for (const auto& [id1, _] : graph1->nodes) {
+    //     for (const auto& [id2, _] : graph1->nodes) {
+    //         if (id1 == id2) continue;
+    //         if (graph::has_edge(graph1, id1, id2) || graph::has_edge(graph1, id2, id1)) continue;
+    //         //graph::add_edge(graph1, id1, id2);
+    //         if (dist(rng::generator)) {//
+    //             graph::add_edge(graph1, id1, id2);
+    //         }
+    //     }
+    // }
+    // // move 'em around
+    // // theta
+    // float pi = 4. * atan(1.f);
+    // float theta = 0.0f;
+    // float radius = 160.f;
+    // uint n = 0;
+    // for (const auto& [id, _] : graph1->nodes) {
+    //     graph::Node* node = core::get_entity<graph::Node>(id);
+    //     // theta = (float)n * 2.0f * pi / (float)(graph1->nodes.size());
+    //     //node->x = radius*cos(theta);
+    //     //node->y = radius*sin(theta);
+    //     //node->x = radius*floor((float)n - 32.f*floor((float)n/32.f));
+    //     //node->y = radius*floor((float)n/32.f - 32.f* floor(((float)n/32.f)/32.f));
+    //     node->x = (500-(float)(rand() % 1000))/1000.f * radius;
+    //     node->y = (500-(float)(rand() % 1000))/1000.f * radius;
+    //     // n++;
+    // }
+    graph1 = alg::generate_graph(g_graph_test_size, g_graph_connectivity);
     
     /* Initialize Graphics */
     graphics::init();
@@ -359,6 +363,13 @@ void processInput(GLFWwindow *window) {
                 graph1 = new graph::Graph;
                 graph::load_graph(graph1, file_path);
             }
+        }
+        // Re-run edge generation.
+        if ( glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS ) {
+            // FIXME: why does dragging nodes break when I do this?
+            load_global_parameters();
+            graph1->edges.clear();
+            alg::generate_edges(graph1, g_graph_connectivity);
         }
     } else {
         if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
