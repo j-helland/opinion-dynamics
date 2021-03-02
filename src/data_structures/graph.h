@@ -21,6 +21,9 @@ TODO: graph is almost certainly not memory-efficient. Try to allocate contiguous
 #include "../core/entity_manager.h"
 
 namespace graph {
+    
+    // Forward decls
+    std::vector<edge_t> get_ingoing_edges_at_node(const Graph* graph, core::id_t target);
 
     // Graph node with adjacency list.
     struct node {
@@ -53,6 +56,29 @@ namespace graph {
             return false;
         graph->nodes[id] = std::unordered_set<core::id_t>{};
         return true;
+    }
+
+    void remove_edge(Graph* graph, const edge_t& edge) {
+        graph->edges.erase(edge);
+        graph->nodes[edge.first].erase(edge.second);
+    }
+
+    void clear_edges(Graph* graph) {
+        // Need to first gather edges so that we don't try to remove inplace and crash.
+        std::vector<edge_t> edges(graph->edges.size());
+        for ( const edge_t& edge : graph->edges )
+            edges.push_back(edge);
+        for ( const edge_t& edge : edges )
+            remove_edge(graph, edge);
+    }
+
+    // NOTE: this does not free memory. Use destroy_node for this purpose.
+    void remove_node(Graph* graph, core::id_t node) {
+        // First we need to remove edges whose terminal node is this one.
+        for ( const edge_t& edge : get_ingoing_edges_at_node(graph, node) ) {
+            remove_edge(graph, edge);
+        }
+        graph->nodes.erase(node);
     }
 
     // Create a graph with num_nodes vertices, no edges.
@@ -121,6 +147,7 @@ namespace graph {
     }
 
     // Return the outgoing edges from a node.
+    // Complexity: O(n) worst case. This only happens when the graph is complete.
     std::vector<edge_t> get_edges_at_node(const Graph* graph, core::id_t node) {
         assert( has_node(graph, node) );
         std::vector<edge_t> edges( graph->nodes.at(node).size() );
@@ -128,6 +155,19 @@ namespace graph {
             edges.push_back( std::make_pair(node, neighbor) );
         }
         return edges; // NOTE: >=c++11 has automatic move semantics for vector return
+    }
+
+    // Collect all edges whose terminal node is the target.
+    // NOTE: Theta(n) because of the adjacency list implemention.
+    std::vector<edge_t> get_ingoing_edges_at_node(const Graph* graph, core::id_t target) {
+        assert( has_node(graph, target) );
+        std::vector<edge_t> edges;
+        for ( const auto& [id, adj] : graph->nodes ) {
+            if ( adj.find(target) != adj.end() ) {
+                edges.push_back(std::make_pair(id, target));
+            }
+        }
+        return edges;
     }
 
     void serialize_graph(const Graph* graph, json& graph_serialized) {

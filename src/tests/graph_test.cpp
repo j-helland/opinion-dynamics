@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <assert.h>
+#include <iostream>
 
 #include "../types.h"
 #include "../random.h"
@@ -12,6 +13,12 @@
 #include "../algorithms/traversal.h"
 
 #define TEST_SIZE (8)
+
+void print_edges(graph::Graph* graph) {
+    for (const auto& edge : graph->edges) {
+        std::cout << "(" << edge.first << ", " << edge.second << ")\n";
+    }
+}
 
 int graph_test(void) {
     graph::Graph* graph = new graph::Graph;
@@ -22,7 +29,8 @@ int graph_test(void) {
     n = k = 0;
 
     // Check that all nodes exist.
-    for (const auto & [id, _] : graph->nodes) assert( graph::has_node(graph, id) );
+    for (const auto & [id, _] : graph->nodes) 
+        assert( graph::has_node(graph, id) );
 
     // Make sure no edges exist.
     assert( graph->edges.empty() );
@@ -45,6 +53,20 @@ int graph_test(void) {
     for (const auto& [id, _] : graph->nodes) {
         graph::add_edge(graph, id, id);
     }
+
+    // // Delete an individual edge. NOTE: will trigger another assertion failure further down. 
+    // graph::remove_edge(graph, std::make_pair(0, 0));
+    // assert( graph->edges.find(std::make_pair(0, 0)) == graph->edges.end() );
+    // assert( graph->nodes[0].find(0) == graph->nodes[0].end() );
+    // return 0;
+
+    // // Delete all edges
+    // graph::clear_edges(graph);
+    // assert( graph->edges.size() == 0 );
+    // for ( const auto& [_, adj] : graph->nodes )
+    //     assert( adj.size() == 0 );
+    // return 0;
+
     assert( graph->edges.size() == TEST_SIZE );
     for (const auto& [id, _] : graph->nodes) {
         graph::Node* node = core::get_entity<graph::Node>(id);
