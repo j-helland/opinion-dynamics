@@ -18,5 +18,11 @@ extern uint g_dynamics_updates_per_second;
 extern uint g_graph_test_size;
 extern float g_graph_connectivity;
 
+// Poisson disk sampler
+namespace alg {
+    extern float g_graph_poisson_disk_min_dist;
+    extern uint g_graph_poisson_disk_max_candidate_samples;
+}
+
 
 #endif

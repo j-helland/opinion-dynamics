@@ -9,6 +9,7 @@
 #include "graph_test.cpp"
 #include "graph_serialization_test.cpp"
 #include "graph_deserialization_test.cpp"
+#include "poisson_disk_test.cpp"
 #include "voter_model_test.cpp"
 #include "sznajd_model_test.cpp"
 
@@ -23,13 +24,14 @@ void print_status(const char* name, int return_code) {
 }
 
 int main() {
-    print_status("entity_manager_test", entity_manager_test());
-    print_status("matrix_test", matrix_test());
-    print_status("graph_test", graph_test());
-    print_status("graph_serialization_test", graph_serialization_test());
-    print_status("graph_deserialization_test", graph_deserialization_test());  // NOTE: must be run after serialization test
-    print_status("voter_model_test", voter_model_test());
-    print_status("sznajd_model_test", sznajd_model_test());
+    // print_status("entity_manager_test", entity_manager_test());
+    // print_status("matrix_test", matrix_test());
+    // print_status("graph_test", graph_test());
+    // print_status("graph_serialization_test", graph_serialization_test());
+    // print_status("graph_deserialization_test", graph_deserialization_test());  // NOTE: must be run after serialization test
+    print_status("poisson_disk_test", poisson_disk_test());  
+    // print_status("voter_model_test", voter_model_test());
+    // print_status("sznajd_model_test", sznajd_model_test());
 
     return 0;
 }

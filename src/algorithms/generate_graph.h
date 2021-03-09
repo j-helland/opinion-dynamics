@@ -4,27 +4,45 @@
 #include <limits>
 #include <math.h>
 
+#include "../random.h"
+#include "../types.h"
 #include "../core/entity_manager.h"
 #include "../data_structures/graph.h"
 #include "../data_structures/matrix.h"
-#include "../random.h"
-#include "../types.h"
+#include "poisson_disk_sampler.h"
 
 namespace alg {
 
-    // namespace {
-    //     template<typename T>
-    //     typedef struct vec2 {
-    //         T x, y;
-    //     };
-    // }
+    float g_graph_poisson_disk_min_dist;
+    uint g_graph_poisson_disk_max_candidate_samples;
 
-    void generate_positions(graph::Graph* graph) {
-        float radius = 160.f;
-        for (const auto& [id, _] : graph->nodes) {
+    void generate_positions(graph::Graph* graph, const uint num_nodes) {
+        // graph::make(graph, 100);
+        // float radius = 160.f;
+        // for (const auto& [id, _] : graph->nodes) {
+        //     graph::Node* node = core::get_entity<graph::Node>(id);
+        //     node->x = (500 - (float)(rand() % 1000)) / 1000.f * radius;
+        //     node->y = (500 - (float)(rand() % 1000)) / 1000.f * radius;
+        // }
+
+        // @TODO Move this stuff into config.
+        const uint height = 100;
+        const uint width = 100;
+        // const float min_dist = 10.0f;
+        // const uint max_candidate_points = 30;
+
+        auto points = generate_poisson_disk(
+            height, width, 
+            g_graph_poisson_disk_min_dist, 
+            g_graph_poisson_disk_max_candidate_samples, 
+            num_nodes);
+        for ( const vec2<float>& point : points ) {
+            core::id_t id = graph::create_node();
+            assert( add_node(graph, id) );
+
             graph::Node* node = core::get_entity<graph::Node>(id);
-            node->x = (500 - (float)(rand() % 1000)) / 1000.f * radius;
-            node->y = (500 - (float)(rand() % 1000)) / 1000.f * radius;
+            node->x = point.x;
+            node->y = point.y;
         }
     }
 
@@ -83,9 +101,8 @@ namespace alg {
 
     graph::Graph* generate_graph(const uint num_nodes, const float threshold) {
         graph::Graph* graph = new graph::Graph;
-        graph = graph::make(graph, num_nodes);
 
-        generate_positions(graph);
+        generate_positions(graph, num_nodes);
         generate_edges(graph, threshold);
         init_graph_opinions(graph);
 

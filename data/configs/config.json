@@ -9,6 +9,8 @@
         "g_model": 1,
         "g_dynamics_updates_per_second": 1,
         "g_graph_test_size": 100,
-        "g_graph_connectivity": 0.15
+        "g_graph_connectivity": 0.15,
+        "alg::g_graph_poisson_disk_min_dist": 10.0,
+        "alg::g_graph_poisson_disk_max_candidate_samples": 30
     }
 }

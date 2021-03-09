@@ -118,6 +118,10 @@ void load_global_parameters() {
     assert( LOAD_PARAM( "simulation", g_dynamics_updates_per_second ) );
     assert( LOAD_PARAM( "simulation", g_graph_test_size ) );
     assert( LOAD_PARAM( "simulation", g_graph_connectivity ) );
+
+    // Poisson disk sampler.
+    assert( LOAD_PARAM( "simulation", alg::g_graph_poisson_disk_min_dist ) );
+    assert( LOAD_PARAM( "simulation", alg::g_graph_poisson_disk_max_candidate_samples ) );
 }
 
 //================================================== 
